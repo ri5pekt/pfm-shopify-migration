@@ -1,2527 +1,1242 @@
 # Shopify migration — features inventory (Particle For Men)
 
-_Generated from repository scan. Schema per item: **Title**, **Description**, **Relevance** (High / Medium / Low), **Transferability** (Full / Partial / Not transferable / N/A). Low relevance or N/A does **not** mean omit from migration planning — it marks Shopify non-parity or decommission work._
+This document lists **what the current website and back office can do** so your team can talk to Shopify with fewer surprises. It was built from a technical review of the store code; this version is written so **non‑technical readers can follow the story**.
 
-## Legend
+**What each block means**
 
-- **High** — revenue, checkout, subscriptions, fraud, tax, fulfillment, i18n/currency, or ops-critical.
-- **Medium** — marketing, CRM, merchandising, SEO, or important UX.
-- **Low** — admin convenience, dev-only, host-only, or minor UX.
+- **Description** — In plain words: what customers, support, or the warehouse experience because of this item.
+- **Relevance** — **High** = touches money, legal, shipping, languages, or subscriptions; **Medium** = marketing, content, or important experience; **Low** = small convenience or something only the old website needed.
+- **Transferability** — How hard it is to get the same outcome on Shopify. **Easy move** means Shopify or a common partner already has a close match. **Expect some work** means apps or a short custom project. **Needs a fresh build** means we design it again on top of Shopify. **Not part of Shopify** means it belongs to the old hosting setup and simply goes away when WordPress is retired.
 
-## 0. Cross-cutting thread index (additive)
+Theme wiring and checkout templates are described **in one summary each** (we do not list every technical file). The long list in section 11 is almost every installed “package” name—even boring ones—with a short note there for the few folders this inventory deliberately skips (unused gift‑card package, licensing updater, and WPML strings explained in section 0).
 
-These rows summarize behaviors implemented by **multiple** components listed later. **Do not remove** the underlying rows.
+## Legend (quick read)
 
-### Thread: WPML + WCML + language/currency + redirects
+- **High** — Shoppers, revenue, tax, fraud checks, shipping, languages/currencies, subscriptions, or daily operations depend on it.
+- **Medium** — Marketing, reviews, emails, landing pages, SEO, or noticeable shopper experience.
+- **Low** — Editor helpers, old hosting tools, or things that rarely affect the customer journey.
 
-- **Description:** Multilingual URLs, `hreflang`, `?store_switch=`, cookie `wp-wpml_current_language`, `wcml_custom_currency` in theme `functions.php`, `mu-plugins/redirections.php`, cart redirect in `mu-plugins/custom_plugin_organizer.php`, WPML product ID memoization in `lib/optimization.php`, multi-currency reads in `lib/utils.php` and plugins such as `cart-sidebar`.
+## 0. Big moving parts (several add-ons work together)
+
+These threads describe **whole workflows** that span many items in section 11. They are reminders for workshops—not a replacement for the detailed rows below.
+
+### Many countries, many languages, many currencies
+
+- **Description:** Today the store can show different languages and charge in different currencies depending on where someone shops. That touches the header language picker, product links, cart, and how prices convert. On Shopify this becomes **Markets** (and careful planning for links people already bookmarked). Some wording also comes from **inside** add-ons (see the next thread)—not only from normal page editors.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Markets + redirects import + theme locale strategy.
+- **Transferability:** **Expect some work** — Shopify handles the idea well, but the exact setup and redirects need a dedicated project.
 
-### Thread: Subscription commerce stack
+### Translating text that comes from inside add-ons (not from normal pages)
 
-- **Description:** `woocommerce-subscriptions`, `woocommerce-subscription`, `subscriptions-utils`, theme recurring checkout templates under `woocommerce/checkout/`, `pfm-panel` subscription REST, upsell plugins touching subscription options (`add_upsells_option_ms`).
+- **Description:** Besides translating whole pages, the team can translate **short strings** that originate inside plugins or the theme—things like a button label baked into an add-on, a checkout message, or a tiny widget line. On WordPress this is part of the same multilingual story as page translation; on Shopify the same outcome is usually **theme locale files**, **translation apps**, or Markets-aware copy in apps—planned together with the main language rollout.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Subscriptions; full plan matrix workshop required.
+- **Transferability:** **Expect some work** — bundle it with Markets and your translation process so no “mystery English” is left in foreign storefronts.
 
-### Thread: Fraud and risk stack
+### Subscribe & save (recurring orders)
 
-- **Description:** Signifyd, Kount, Sift (multiple plugins), checkout observer/bot block, package protection.
+- **Description:** Customers can put products on a schedule with renewals, price changes over time, and self‑service changes. Several add‑ons and custom tools support that today—including internal staff screens for fixes and notes.
 - **Relevance:** High
-- **Transferability:** Partial — combine Shopify Fraud with third-party apps and payment rules.
+- **Transferability:** **Expect some work** — Shopify has subscription tools, but every billing rule must be checked one by one.
 
-### Thread: Fulfillment and post-purchase visibility
+### Fraud and risky orders
 
-- **Description:** ShipBob, ShipStation, shipment tracking, Narvar, AfterShip, warehouse-export webhooks, ERP Priority integrations.
+- **Description:** Before an order is accepted, outside services score risk; bots can be blocked and some checkout steps are watched closely.
 - **Relevance:** High
-- **Transferability:** Partial — OMS connectors and Shopify webhooks.
+- **Transferability:** **Expect some work** — Shopify has built‑in fraud signals; some partners (Signifyd, Kount, etc.) are re‑connected via apps.
 
-### Thread: Marketing and attribution pixels
+### Getting the box out the door (and telling the customer where it is)
 
-- **Description:** GTM, PixelYourSite, Blotout, Impact, TikTok, Facebook channel, Wunderkind, OptinMonster, theme purchase events in `lib/utils.php`.
+- **Description:** ShipBob, tracking emails, Narvar, AfterShip, warehouse exports, and the link to the Priority business system all feed this story. **Note:** a ShipStation add‑on exists in the code folder but **Particle does not use ShipStation**, so it should not be budgeted on Shopify.
 - **Relevance:** High
-- **Transferability:** Partial — pixels in Customer Events / server-side partners.
+- **Transferability:** **Expect some work** — Connectors and emails are rebuilt using Shopify’s order updates plus partner apps.
 
-## 1. Theme — PHP modules (`functions.php` includes)
+### Ads, pixels, and “who clicked what”
 
-### `lib/image-sizes.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/image-sizes.php`
-
-### `lib/custom-post-types.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/custom-post-types.php`
-
-### `lib/remove-trash.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/remove-trash.php`
-
-### `lib/script-style.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/script-style.php`
-
-### `lib/gutenberg/gutenberg.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/gutenberg/gutenberg.php`
-
-### `lib/acf/acf.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/acf/acf.php`
-
-### `lib/ajaxFunctions.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/ajaxFunctions.php`
-
-### `lib/theme-setup.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/theme-setup.php`
-
-### `lib/accessibility.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/accessibility.php`
-
-### `lib/woocommerce-setup.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/woocommerce-setup.php`
-
-### `lib/checkout.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/checkout.php`
-
-### `lib/rest-api.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/rest-api.php`
-
-### `lib/seo.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/seo.php`
-
-### `lib/retention.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/retention.php`
-
-### `lib/request-checker.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/request-checker.php`
-
-### `lib/admin-dashboard.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/admin-dashboard.php`
-
-### `lib/meta-shop-checkout.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/meta-shop-checkout.php`
-
-### `lib/utils.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/utils.php`
-
-### `lib/super-editor.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/super-editor.php`
-
-### `lib/cart-functions.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/cart-functions.php`
-
-### `lib/ab-tests.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/ab-tests.php`
-
-### `lib/class-particle-klaviyo-helper.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/class-particle-klaviyo-helper.php`
-
-### `lib/optimization.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/optimization.php`
-
-### `lib/retention-lp-utils.php`
-
-- **Description:** Theme logic loaded on every request (or as gated by internal includes). Review file for Woo hooks, REST, WPML, Klaviyo, checkout, cart, SEO, A/B tests, optimization.
-- **Relevance:** High (commerce + i18n surface area)
-- **Transferability:** Not transferable — reimplement behaviors in Shopify theme app extensions, Functions, and apps.
-- **Evidence:** `wp-content/themes/particleformen/lib/retention-lp-utils.php`
-
-## 2. Theme — `functions.php` root-level behaviors
-
-### `wcml_custom_currency` filter
-
-- **Description:** Maps `wpml_current_language` codes (`au`,`gb`,`br`,`ca`,`he`,`la`,`ja`,`fr`,`de`,`it`,`es`) to ISO currencies (AUD, GBP, BRL, CAD, ILS, MXN, JPY, EUR).
+- **Description:** Google Tag Manager, Meta/TikTok pixels, affiliate tools, pop‑ups, and similar tags feed marketing teams.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Markets pricing.
+- **Transferability:** **Expect some work** — Most partners publish a Shopify‑ready snippet; still needs QA so sales numbers stay trustworthy.
 
-### Category `list` asset dequeue
+## 1. The storefront “glue” (theme code)
 
-- **Description:** On posts in category `list`, dequeues Woo + font + cookie scripts for lightweight reading experience.
+### Custom Particle theme wiring
+
+- **Description:** About **24** small code modules load with every page to connect the design to real store behavior—cart, checkout, languages, coupons, Klaviyo emails, address checks, SEO, quizzes, A/B tests, and more. Think of this as the **instruction list behind the scenes**; shoppers never see the filenames. Engineers use the theme’s `functions.php` file if they need the exact list.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — Shopify replaces the whole engine, but each shopper-facing habit must be checked so nothing is lost.
+
+## 2. Special rules baked into the old checkout & blog
+
+### Language picks the default currency
+
+- **Description:** When someone picks a country/language, the store quietly switches which currency prices use (for example Australia → Australian dollars, Japan → yen, EU countries → euros).
+- **Relevance:** High
+- **Transferability:** **Expect some work** — Shopify Markets handles the same idea with a cleaner setup.
+
+### Lighter blog reading mode
+
+- **Description:** Certain magazine-style articles load without heavy shop scripts so they feel faster on slow phones.
 - **Relevance:** Low
-- **Transferability:** Partial — theme blog templates.
+- **Transferability:** **Expect some work** — recreate with a simple Shopify blog template if still wanted.
 
-### Checkout phone blocklist (`njengah_custom_checkout_field_process`)
+### Blocked test phone numbers at checkout
 
-- **Description:** Blocks specific hard-coded `billing_phone` values at checkout validation.
-- **Relevance:** Medium (fraud / abuse)
-- **Transferability:** Partial — Flow or checkout validation app.
-
-### `custom_coupon_query` SQL filter
-
-- **Description:** Intercepts SQL containing INSERT into `woocommerce_order_itemmeta` for `coupon_data` and blanks query (custom coupon persistence behavior).
-- **Relevance:** High
-- **Transferability:** Not transferable — must understand business rule before replicating on Shopify.
-
-### Magazine related posts + breadcrumbs + Yoast redirect slug + `remove_action` canonical
-
-- **Description:** Editorial helpers, Yoast filter, disables old slug redirect and `redirect_canonical` on `init` priority 100.
-- **Relevance:** Medium
-- **Transferability:** Partial — SEO/redirect strategy on Shopify.
-
-## 3. Theme — page templates (`template/*.php`)
-
-### Page template file `after-quiz.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/after-quiz.php`
-
-### Page template file `code-tests.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/code-tests.php`
-
-### Page template file `content-post.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/content-post.php`
-
-### Page template file `gravite-landing-page-2.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/gravite-landing-page-2.php`
-
-### Page template file `gravite-landing-page-ty.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/gravite-landing-page-ty.php`
-
-### Page template file `gravite-landing-page.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/gravite-landing-page.php`
-
-### Page template file `single-product-marsmen.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/single-product-marsmen.php`
-
-### Page template file `tmp-amazon-gift-landing-page.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/tmp-amazon-gift-landing-page.php`
-
-### Page template file `tmp-amazon-lp-ty.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/tmp-amazon-lp-ty.php`
-
-### Page template file `tmp-book-consultation-2.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/tmp-book-consultation-2.php`
-
-### Page template file `tmp-book-consultation.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/tmp-book-consultation.php`
-
-### Page template file `tmp-build-your-own-bundle.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/tmp-build-your-own-bundle.php`
-
-### Page template file `tmp-commercials.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/tmp-commercials.php`
-
-### Page template file `tmp-face-analyzer.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/tmp-face-analyzer.php`
-
-### Page template file `tmp-first-purchase-anniversary.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/tmp-first-purchase-anniversary.php`
-
-### Page template file `tmp-gravite-commercial.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/tmp-gravite-commercial.php`
-
-### Page template file `tmp-life-drive-lp.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/tmp-life-drive-lp.php`
-
-### Page template file `tmp-sport-page.php`
-
-- **Description:** Assignable WordPress page template in Particle theme. Open file for `Template Name` and marketing use case.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify page template or section set.
-- **Evidence:** `wp-content/themes/particleformen/template/tmp-sport-page.php`
-
-## 4. Theme — Gutenberg blocks (`app/blocks/*/block.php`)
-
-_Block count: **70**._
-
-### Block `ab-test-html`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/ab-test-html/`
-
-### Block `about-awkward`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/about-awkward/`
-
-### Block `about-head`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/about-head/`
-
-### Block `about-video`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/about-video/`
-
-### Block `action-coffee-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/action-coffee-block/`
-
-### Block `affiliates-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/affiliates-block/`
-
-### Block `after-quiz-bundle`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/after-quiz-bundle/`
-
-### Block `all-products-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/all-products-block/`
-
-### Block `banner-blue`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/banner-blue/`
-
-### Block `benefits-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/benefits-block/`
-
-### Block `best-sellers-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/best-sellers-block/`
-
-### Block `blue-banner-text`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/blue-banner-text/`
-
-### Block `bundle-products-list`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/bundle-products-list/`
-
-### Block `bundle-save`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/bundle-save/`
-
-### Block `bundles-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/bundles-block/`
-
-### Block `clinical-trial`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/clinical-trial/`
-
-### Block `coffee-ingredients-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/coffee-ingredients-block/`
-
-### Block `coffee-innovate-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/coffee-innovate-block/`
-
-### Block `comparison-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/comparison-block/`
-
-### Block `confirmation-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/confirmation-block/`
-
-### Block `contact-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/contact-block/`
-
-### Block `custom-editor`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/custom-editor/`
-
-### Block `difference-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/difference-block/`
-
-### Block `faq-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/faq-block/`
-
-### Block `faq-items`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/faq-items/`
-
-### Block `faq-new`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/faq-new/`
-
-### Block `gravite-banner-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/gravite-banner-block/`
-
-### Block `gravite-carousel-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/gravite-carousel-block/`
-
-### Block `gravite-header-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/gravite-header-block/`
-
-### Block `gravite-horizontal-accordion`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/gravite-horizontal-accordion/`
-
-### Block `gravite-sale-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/gravite-sale-block/`
-
-### Block `header-top`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/header-top/`
-
-### Block `how-to-use-new`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/how-to-use-new/`
-
-### Block `how-use`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/how-use/`
-
-### Block `ingredients-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/ingredients-block/`
-
-### Block `ingredients-premium-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/ingredients-premium-block/`
-
-### Block `instagram-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/instagram-block/`
-
-### Block `logos-slider-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/logos-slider-block/`
-
-### Block `magazin-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/magazin-block/`
-
-### Block `more-product`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/more-product/`
-
-### Block `more-products-new`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/more-products-new/`
-
-### Block `order-bump-popup`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/order-bump-popup/`
-
-### Block `performance-gear-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/performance-gear-block/`
-
-### Block `perfume-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/perfume-block/`
-
-### Block `perfume-block-footer`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/perfume-block-footer/`
-
-### Block `perfume-top-hebrew`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/perfume-top-hebrew/`
-
-### Block `press-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/press-block/`
-
-### Block `privacy-policy`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/privacy-policy/`
-
-### Block `product-actions`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/product-actions/`
-
-### Block `products-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/products-block/`
-
-### Block `products-head`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/products-head/`
-
-### Block `quiz-container`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/quiz-container/`
-
-### Block `reason-block-new`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/reason-block-new/`
-
-### Block `reasons-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/reasons-block/`
-
-### Block `recommend-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/recommend-block/`
-
-### Block `refund-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/refund-block/`
-
-### Block `reviews-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/reviews-block/`
-
-### Block `section-products`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/section-products/`
-
-### Block `slider-particle-men`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/slider-particle-men/`
-
-### Block `slider-particle-men-v1`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/slider-particle-men-v1/`
-
-### Block `specifically-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/specifically-block/`
-
-### Block `stamped-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/stamped-block/`
-
-### Block `submit-ticket-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/submit-ticket-block/`
-
-### Block `support-block`
-
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
+- **Description:** A short internal list of phone numbers is rejected at checkout to stop known bad actors.
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/support-block/`
+- **Transferability:** **Expect some work** — rebuild as a Shopify Flow rule or checkout validation app.
 
-### Block `tabs-scroll-block`
+### Extra coupon bookkeeping
 
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/tabs-scroll-block/`
+- **Description:** Custom logic changes how some coupon details are stored in the database—usually tied to a promotion partner. Business stakeholders should confirm **why** it exists before copying anything.
+- **Relevance:** High
+- **Transferability:** **Needs a fresh build** — must be understood before promising the same behavior on Shopify.
 
-### Block `tag-line`
+### Magazine helpers & SEO tweaks
 
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
+- **Description:** Related articles, breadcrumbs, and a few Yoast SEO settings that change how old URLs behave.
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/tag-line/`
-
-### Block `thank-you`
+- **Transferability:** **Expect some work** — rebuild redirects and metadata inside Shopify.
 
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/thank-you/`
+## 3. Campaign & landing page layouts
 
-### Block `tv-commercial-block`
+### Special WordPress page layouts
 
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
+- **Description:** The merchandising team can attach **18** custom layouts to normal WordPress pages for big campaigns—examples include Build‑Your‑Own Bundle, Marsmen‑style product stories, commercials, consultations, Amazon gift flows, and thank‑you pages. File names for reference: `after-quiz.php`, `code-tests.php`, `content-post.php`, `gravite-landing-page-2.php`, `gravite-landing-page-ty.php`, `gravite-landing-page.php`, `single-product-marsmen.php`, `tmp-amazon-gift-landing-page.php`, `tmp-amazon-lp-ty.php`, `tmp-book-consultation-2.php`, `tmp-book-consultation.php`, `tmp-build-your-own-bundle.php`, `tmp-commercials.php`, `tmp-face-analyzer.php`, `tmp-first-purchase-anniversary.php`, `tmp-gravite-commercial.php`, `tmp-life-drive-lp.php`, `tmp-sport-page.php`.
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/tv-commercial-block/`
-
-### Block `video-block`
+- **Transferability:** **Expect some work** — rebuild as Shopify pages with reusable sections and plan URL redirects.
 
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/video-block/`
+## 4. Drag‑and‑drop content blocks for editors
 
-### Block `video-reviews-block`
+### Custom content blocks (Gutenberg)
 
-- **Description:** Registered block under Particle theme; defines editor + front markup for a reusable section.
+- **Description:** Editors have **70** reusable blocks for rich storytelling—best sellers, bundles, FAQs, reviews, quizzes, Gravité‑specific promos, sliders, press logos, Instagram grids, post‑purchase thank‑you snippets, ingredients, clinical claims, and more. Sample block names: `ab-test-html`, `about-awkward`, `about-head`, `about-video`, `action-coffee-block`, `affiliates-block`, `after-quiz-bundle`, `all-products-block`, `banner-blue`, `benefits-block`, `best-sellers-block`, `blue-banner-text`, `bundle-products-list`, `bundle-save`, `bundles-block`, `clinical-trial`, `coffee-ingredients-block`, `coffee-innovate-block`, `comparison-block`, `confirmation-block`, `contact-block`, `custom-editor`, `difference-block`, `faq-block`, `faq-items`, `faq-new`, `gravite-banner-block`, `gravite-carousel-block`, `gravite-header-block`, `gravite-horizontal-accordion`, `gravite-sale-block`, `header-top`, `how-to-use-new`, `how-use`, `ingredients-block`, `ingredients-premium-block`, `instagram-block`, `logos-slider-block`, `magazin-block`, `more-product` …and **30** more..
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify theme sections or metaobject-driven sections.
-- **Evidence:** `wp-content/themes/particleformen/app/blocks/video-reviews-block/`
-
-## 5. Theme — WooCommerce template overrides
-
-_PHP files under `woocommerce/`: **69**._
-
-### Override `woocommerce/archive-product.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/archive-product.php`
-
-### Override `woocommerce/cart/cart-backup.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/cart/cart-backup.php`
-
-### Override `woocommerce/cart/cart-recurring-shipping.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/cart/cart-recurring-shipping.php`
-
-### Override `woocommerce/cart/cart-shipping.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/cart/cart-shipping.php`
-
-### Override `woocommerce/cart/cart-totals.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/cart/cart-totals.php`
-
-### Override `woocommerce/cart/cart.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/cart/cart.php`
-
-### Override `woocommerce/cart/proceed-to-checkout-button.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/cart/proceed-to-checkout-button.php`
-
-### Override `woocommerce/checkout/custom-payment-method.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/custom-payment-method.php`
-
-### Override `woocommerce/checkout/form-billing.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/form-billing.php`
-
-### Override `woocommerce/checkout/form-checkout.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/form-checkout.php`
-
-### Override `woocommerce/checkout/form-coupon.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/form-coupon.php`
-
-### Override `woocommerce/checkout/form-pay.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/form-pay.php`
-
-### Override `woocommerce/checkout/form-shipping.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/form-shipping.php`
-
-### Override `woocommerce/checkout/payment-method.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/payment-method.php`
-
-### Override `woocommerce/checkout/payment.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/payment.php`
-
-### Override `woocommerce/checkout/recurring-coupon-totals.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/recurring-coupon-totals.php`
-
-### Override `woocommerce/checkout/recurring-fee-totals.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/recurring-fee-totals.php`
-
-### Override `woocommerce/checkout/recurring-itemized-tax-totals.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/recurring-itemized-tax-totals.php`
-
-### Override `woocommerce/checkout/recurring-subscription-totals.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/recurring-subscription-totals.php`
-
-### Override `woocommerce/checkout/recurring-subtotals.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/recurring-subtotals.php`
-
-### Override `woocommerce/checkout/recurring-tax-totals.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/recurring-tax-totals.php`
-
-### Override `woocommerce/checkout/recurring-totals.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/recurring-totals.php`
-
-### Override `woocommerce/checkout/review-order.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/review-order.php`
-
-### Override `woocommerce/checkout/versions/form-billing-v1.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/versions/form-billing-v1.php`
-
-### Override `woocommerce/checkout/versions/form-billing-v2.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/versions/form-billing-v2.php`
-
-### Override `woocommerce/checkout/versions/form-checkout-v1.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/versions/form-checkout-v1.php`
-
-### Override `woocommerce/checkout/versions/form-checkout-v2.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/versions/form-checkout-v2.php`
-
-### Override `woocommerce/checkout/versions/form-shipping-v1.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/versions/form-shipping-v1.php`
-
-### Override `woocommerce/checkout/versions/form-shipping-v2.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/versions/form-shipping-v2.php`
-
-### Override `woocommerce/checkout/versions/review-order-v1.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/versions/review-order-v1.php`
-
-### Override `woocommerce/checkout/versions/review-order-v2.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/checkout/versions/review-order-v2.php`
-
-### Override `woocommerce/gallery-large-video-layout.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/gallery-large-video-layout.php`
-
-### Override `woocommerce/gallery.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/gallery.php`
-
-### Override `woocommerce/myaccount/dashboard1.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/dashboard1.php`
-
-### Override `woocommerce/myaccount/downloads.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/downloads.php`
-
-### Override `woocommerce/myaccount/form-add-payment-method1.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/form-add-payment-method1.php`
-
-### Override `woocommerce/myaccount/form-edit-account1.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/form-edit-account1.php`
-
-### Override `woocommerce/myaccount/form-edit-address.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/form-edit-address.php`
-
-### Override `woocommerce/myaccount/form-login.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/form-login.php`
-
-### Override `woocommerce/myaccount/form-lost-password.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/form-lost-password.php`
-
-### Override `woocommerce/myaccount/form-reset-password.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/form-reset-password.php`
-
-### Override `woocommerce/myaccount/lost-password-confirmation.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/lost-password-confirmation.php`
-
-### Override `woocommerce/myaccount/my-account.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/my-account.php`
-
-### Override `woocommerce/myaccount/my-address1.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/my-address1.php`
-
-### Override `woocommerce/myaccount/my-downloads.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/my-downloads.php`
-
-### Override `woocommerce/myaccount/my-orders.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/my-orders.php`
-
-### Override `woocommerce/myaccount/navigation.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/navigation.php`
-
-### Override `woocommerce/myaccount/orders.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/orders.php`
+- **Transferability:** **Expect some work** — rebuild as Shopify sections or metaobject‑driven content.
 
-### Override `woocommerce/myaccount/payment-methods.php`
+## 5. Cart, checkout, and “my account” screens
 
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/payment-methods.php`
-
-### Override `woocommerce/myaccount/view-order.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/myaccount/view-order.php`
-
-### Override `woocommerce/new-gallery.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/new-gallery.php`
-
-### Override `woocommerce/pdp-versions/default-layout.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/pdp-versions/default-layout.php`
-
-### Override `woocommerce/pdp-versions/features-list-layout.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/pdp-versions/features-list-layout.php`
-
-### Override `woocommerce/pdp-versions/single-image-layout.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/pdp-versions/single-image-layout.php`
-
-### Override `woocommerce/pdp-versions/tabs-layout.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/pdp-versions/tabs-layout.php`
-
-### Override `woocommerce/pdp-versions/tabs-layout/_buy-box-gifts.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/pdp-versions/tabs-layout/_buy-box-gifts.php`
-
-### Override `woocommerce/pdp-versions/tabs-layout/_buy-box-regular.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/pdp-versions/tabs-layout/_buy-box-regular.php`
-
-### Override `woocommerce/pdp-versions/tabs-layout/_buy-box-sub-one-time.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/pdp-versions/tabs-layout/_buy-box-sub-one-time.php`
-
-### Override `woocommerce/pdp-versions/tabs-layout/_gallery.php`
+### Branded shopping funnel templates
 
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
+- **Description:** The Particle design replaces **69** of WooCommerce’s default screens—cart drawer, checkout (including older vs newer versions), subscription renewals, customer account area, product detail layouts, and galleries. Shoppers experience this as “the Particle checkout,” not as individual files.
 - **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/pdp-versions/tabs-layout/_gallery.php`
+- **Transferability:** **Expect some work** — Shopify checkout + customer accounts look different; plan a UX review, not a copy‑paste.
 
-### Override `woocommerce/pdp-versions/tabs-layout/_init.php`
+## 6. Landing page content type
 
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/pdp-versions/tabs-layout/_init.php`
-
-### Override `woocommerce/pdp-versions/tabs-layout/_product-info.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/pdp-versions/tabs-layout/_product-info.php`
-
-### Override `woocommerce/pdp-versions/tabs-layout/_quiz-banner.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/pdp-versions/tabs-layout/_quiz-banner.php`
-
-### Override `woocommerce/product-page/countdown.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/product-page/countdown.php`
-
-### Override `woocommerce/product-page/lp-top-block.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/product-page/lp-top-block.php`
-
-### Override `woocommerce/product-page/price-block.php`
+### “Landing pages” content bucket
 
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
+- **Description:** A dedicated content type powers long‑form campaign URLs that start with `/lpage/…`, separate from normal products.
 - **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/product-page/price-block.php`
+- **Transferability:** **Expect some work** — map to Shopify pages or landing apps and redirect old links.
 
-### Override `woocommerce/single-product-2284761.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/single-product-2284761.php`
-
-### Override `woocommerce/single-product-lifedrive.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/single-product-lifedrive.php`
-
-### Override `woocommerce/single-product.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/single-product.php`
-
-### Override `woocommerce/video-section.php`
-
-- **Description:** Overrides WooCommerce default template path for storefront/checkout/account behavior.
-- **Relevance:** High
-- **Transferability:** Partial — Liquid / Checkout Extensibility.
-- **Evidence:** `wp-content/themes/particleformen/woocommerce/video-section.php`
-
-## 6. Custom post type (theme)
-
-### CPT `landing_pages`
-
-- **Description:** Registered in `lib/custom-post-types.php` with `rewrite.slug = lpage`. Public REST-enabled landing content type.
-- **Relevance:** High
-- **Transferability:** Partial — Shopify Pages or metaobject landing model + URL redirects.
+## 7. Behind‑the‑scenes data feeds & webhooks
 
-## 7. REST and webhooks (non–pfm-panel highlights)
+_These are invisible to shoppers but important for marketing, warehouse, or finance._
 
-### `twilio-api/v1` verify & send
+### Text messages (Twilio)
 
-- **Description:** Theme `lib/rest-api.php` — SMS / verification flows.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Lets the site send or verify SMS messages (for example two‑step flows).
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `klaviyo-api/v1` profile, amazon, consultation, sweepstakes-webhook
+### Klaviyo profile updates
 
-- **Description:** Theme `lib/rest-api.php` — server-side Klaviyo profile updates.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Keeps Klaviyo profiles in sync when someone fills out special forms or promotions.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `email/v1` verify_email
+### Email verification for promotions
 
-- **Description:** Theme `lib/rest-api.php`.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Confirms email addresses before certain promotions unlock.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `braintree/v1` dispute-webhook
+### Braintree dispute alerts
 
-- **Description:** Theme `lib/rest-api.php` — Braintree disputes to orders.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** When Braintree flags a payment dispute, the site can attach notes to the matching order.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `woo/v1` order-notes & subscription-notes
+### Order and subscription notes for staff tools
 
-- **Description:** Theme `lib/rest-api.php`.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Lets trusted internal tools read or write internal notes on orders or subscriptions.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `get-data/v1` openai-crawlers/overview
+### AI and search crawler visit analytics
 
-- **Description:** Theme `lib/rest-api.php`.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Aggregates stored crawler traffic (which URLs were visited and how often over time) for monitoring and SEO-related visibility—shoppers never see this screen.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `shipbob/v1` order_shipped, shipment_exception, shipment_delivered
+### ShipBob warehouse callbacks
 
-- **Description:** `warehouse-export` plugin ShipBob class.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** ShipBob tells WordPress when a parcel ships, is delayed, or is delivered.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `v1` order-shipped/green
+### Secondary warehouse feed (“Green”)
 
-- **Description:** `warehouse-export` Green warehouse webhook.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Another warehouse integration speaks the same “shipped” language for a different 3PL.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `pfm-monday-coupons` REST
+### Monday.com coupon bridge
 
-- **Description:** `pfm-monday-coupons` — coupon API for external automation.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Creates or updates coupons when the Monday.com workflow says so.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `yotpo-integration/v1` create-coupon & cancel-coupon
+### Yotpo coupon automation
 
-- **Description:** Yotpo loyalty coupon lifecycle.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Lets Yotpo loyalty create or cancel coupon codes automatically.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `pfm-tools-utils` REST
+### Miscellaneous staff helper APIs
 
-- **Description:** Multiple utility endpoints — read `pfm-tools-utils.php`.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Small one-off hooks used by internal dashboards—engineering should confirm which are still called.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `pfm-chargebacks-utils` REST
+### Chargeback lookup
 
-- **Description:** Chargeback lookup by order.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Looks up chargeback status for a given order for finance/support.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `pfm-geo-privacy` REST
+### Geo privacy gate
 
-- **Description:** Geo privacy endpoint.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Controls what appears based on privacy / geography rules.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `sellence-api` /products & /coupons
+### Sellence product & coupon feed
 
-- **Description:** External catalog/coupon feed.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Exposes catalog/coupon data for an external partner system.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `wunderkind/v1` feed
+### Wunderkind product feed
 
-- **Description:** Wunderkind product feed.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Sends catalog data to Wunderkind for onsite personalization.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `orderswidget/v1` summary
+### Order summary widget
 
-- **Description:** Order summary widget API.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Feeds a small admin widget with order totals.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### `om-map/v1` map, bulk-map, nonce
+### OptinMonster map helper
 
-- **Description:** mu-plugin OptinMonster map output if present.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Helps OptinMonster campaigns map to WordPress content if enabled.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Klaviyo `class-wck-api.php` REST
+### Klaviyo plugin APIs
 
-- **Description:** Official Klaviyo plugin endpoints.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Official Klaviyo endpoints bundled with their WordPress plugin.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Yoast / WP Rocket REST
+### Yoast / WP Rocket maintenance APIs
 
-- **Description:** Admin-only REST for SEO/cache — low migration priority.
-- **Relevance:** Medium to High depending on consumer systems.
-- **Transferability:** Partial — replicate with Shopify webhooks, app proxies, or middleware.
+- **Description:** Background housekeeping for SEO cache plugins—rarely shopper facing.
+- **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
+- **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-## 8. MU-plugins and host (custom subset)
+## 8. Always‑on WordPress “safety” files
 
-### MU-plugin `pfm-braintree-api-access.php`
+### Always‑on file: `pfm-braintree-api-access.php`
 
-- **Description:** Braintree API access helper for server-side operations.
+- **Description:** Lets trusted server jobs talk to Braintree with the right credentials.
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/mu-plugins/pfm-braintree-api-access.php`
+- **Transferability:** **Expect some work:** move secrets to the new hosting model; reconnect Braintree where still needed.
 
-### MU-plugin `redirections.php`
+### Always‑on file: `redirections.php`
 
-- **Description:** WPML Redirect: language detection, `store_switch` cookie, URL fixes.
+- **Description:** Guesses the shopper’s language, fixes URLs, and remembers `store_switch` choices for WPML.
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/mu-plugins/redirections.php`
+- **Transferability:** **Expect some work:** rebuild with Shopify Markets + redirect import.
 
-### MU-plugin `pfm-performance.php`
+### Always‑on file: `pfm-performance.php`
 
-- **Description:** Performance-related mu-plugin (theme-adjacent).
+- **Description:** Small performance tweaks specific to this host/theme combo.
 - **Relevance:** Medium
-- **Transferability:** N/A
-- **Evidence:** `wp-content/mu-plugins/pfm-performance.php`
+- **Transferability:** **Not part of Shopify:** Shopify handles performance differently.
 
-### MU-plugin `custom_plugin_organizer.php`
+### Always‑on file: `custom_plugin_organizer.php`
 
-- **Description:** Plugin load order, dashboard tweaks, cart removed_item redirect with WPML prefix.
+- **Description:** Controls which heavy plugins load during AJAX, and fixes cart redirects when languages are involved.
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/mu-plugins/custom_plugin_organizer.php`
+- **Transferability:** **Expect some work:** not needed on Shopify, but behaviors (like redirects) must be reproduced if shoppers rely on them.
 
-### MU-plugin `woocommerce-additional.php`
+### Always‑on file: `woocommerce-additional.php`
 
-- **Description:** Additional Woo hooks at mu level — audit contents.
+- **Description:** Extra WooCommerce hooks loaded very early—confirm with engineering what they still do.
 - **Relevance:** Medium
-- **Transferability:** Partial
-- **Evidence:** `wp-content/mu-plugins/woocommerce-additional.php`
+- **Transferability:** **Expect some work:** validate before cutover.
 
-### MU-plugin `om-map-output.php`
+### Always‑on file: `om-map-output.php`
 
-- **Description:** OptinMonster map REST if loaded.
+- **Description:** Optional helper for OptinMonster mapping.
 - **Relevance:** Low
-- **Transferability:** Partial
-- **Evidence:** `wp-content/mu-plugins/om-map-output.php`
+- **Transferability:** **Expect some work:** only if OptinMonster stays in the marketing stack.
 
-### WP Engine mu-plugins (`wpengine-*`, `wpe-*`, `slt-force-strong-passwords`, etc.)
+### WP Engine hosting bundles
 
-- **Description:** Hosting vendor auto-loaded plugins: caching, SSO, security auditor, update source, etc.
-- **Relevance:** Low for Shopify storefront parity
-- **Transferability:** N/A — not part of Shopify; decommission with WP.
+- **Description:** Caching, forced security patches, login helpers, and other tools injected by the WP Engine host. They keep WordPress healthy but are invisible to shoppers.
+- **Relevance:** Low for the Shopify project itself
+- **Transferability:** **Not part of Shopify:** disappears when WordPress is retired.
 
-## 9. Static scrape inputs (reference)
+## 9. Saved HTML snapshots (research only)
 
-- **Description:** Local HTML snapshots under `C:\Users\denis_particleformen\Desktop\Cursor Projects\particleformen-scrape\output\html` validate enqueued plugins, `hreflang` URL patterns, `?purchase-type=subscription`, `?store_switch=`.
-- **Relevance:** Medium (evidence for Phase G validation)
-- **Transferability:** N/A — research artifact.
-
-## 10. `pfm-panel` REST API — individual routes (`pfm-panel/v1`)
-
-Each route is an internal operations capability to map to **Shopify Admin API**, **custom app**, or **retired workflow**.
-
-### `GET|POST /wp-json/pfm-panel/v1/orders`
-
-- **Description:** Order collection or creation entrypoint (see `class-pfmp-rest-orders.php` for methods).
-- **Relevance:** High
-- **Transferability:** Not transferable — Admin API `orders.json` + app auth.
-
-### `GET|PUT|PATCH /wp-json/pfm-panel/v1/orders/{id}`
-
-- **Description:** Single order read/update.
-- **Relevance:** High
-- **Transferability:** Not transferable — Admin API orders.
-
-### `GET /wp-json/pfm-panel/v1/orders/by-user/{user_id}`
-
-- **Description:** Orders for a given WP user id.
-- **Relevance:** High
-- **Transferability:** Partial — Shopify customer order lookup.
-
-### `POST /wp-json/pfm-panel/v1/orders/{order_id}/revalidate-address`
-
-- **Description:** Re-run address validation for an order.
-- **Relevance:** High
-- **Transferability:** Partial — address validation app + order edit.
-
-### `POST /wp-json/pfm-panel/v1/orders/{order_id}/export-to-warehouse`
-
-- **Description:** Push order to warehouse / WMS export pipeline.
-- **Relevance:** High
-- **Transferability:** Partial — fulfillment webhooks.
-
-### `POST /wp-json/pfm-panel/v1/orders/bulk`
-
-- **Description:** Bulk order operations.
-- **Relevance:** High
-- **Transferability:** Partial — Bulk Admin API / background jobs.
-
-### `POST /wp-json/pfm-panel/v1/orders/{id}/edit`
-
-- **Description:** Edit order fields from internal panel.
-- **Relevance:** High
-- **Transferability:** Partial — order edits in Shopify admin / app.
-
-### `GET /wp-json/pfm-panel/v1/products-by-category`
-
-- **Description:** Product picker data for internal tools.
+- **Description:** A folder of frozen HTML captures from the live site helps double‑check which marketing tags, languages, and subscription links appear in the real storefront. Path on disk: `C:\Users\denis_particleformen\Desktop\Cursor Projects\particleformen-scrape\output\html`.
 - **Relevance:** Medium
-- **Transferability:** Partial — Admin API products query.
+- **Transferability:** **Not part of Shopify:** reference material only.
 
-### `GET|POST /wp-json/pfm-panel/v1/orders/{order_id}/notes`
+## 10. Internal tools your team uses inside WordPress (`pfm-panel`)
 
-- **Description:** Order notes CRUD for ops.
+Support and operations use a private staff control panel wired into WordPress. It is not a shopper-facing storefront; it centralizes order, subscription, and customer work that today happens outside Shopify Admin. After migration, the same jobs belong in **Shopify Admin**, **Shopify Flow**, partner **apps**, or a small custom internal tool—with staff authentication and permissions designed on purpose.
+
+### Orders: search, open, edit, and back-office actions
+
+- **Description:** Staff browse and search orders, open a single order, update fields, see previews, and run operational steps in one place—for example re-run address validation, push an order into the warehouse export path, retry failed payments, issue refunds (including refunds that post as store credit), resend transactional emails, inspect Braintree payment metadata, and resolve Narvar tracking links when that post-purchase experience is in use. Bulk operations and simple “create order” flows live here, along with lightweight helpers such as “newest order” checks for older dashboards and internal order notes for handoffs between teams.
+- **Relevance:** High
+- **Transferability:** **Needs a fresh build** for anything that assumes WooCommerce order records and custom integrations; map each behavior to Shopify Admin, fulfillment apps, and the Admin API.
+
+### Subscriptions: list, change, pause or cancel, and notes
+
+- **Description:** Staff list subscriptions, open one, adjust line items or schedules where policy allows, run lifecycle actions such as pause or cancel, see which catalog items are offered on subscription, pull subscriptions for a given customer, and attach internal notes on the contract.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — Shopify’s subscription model differs; plan with your subscription app and contract APIs rather than expecting a one-to-one copy of this screen.
+
+### Customers: search, profiles, support views, credits, and loyalty
+
+- **Description:** Staff search for customers, open profiles for read and update, and sometimes work in a “support as customer” mode for troubleshooting. The panel ties into Yotpo loyalty for point adjustments and into Woo store credit ledgers with the ability to post adjustments—finance and support use these for refunds-as-credit and goodwill gestures.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — customer identity, staff impersonation rules, credits, and loyalty spread across Shopify Admin and partner apps on the new stack.
+
+### Replacement orders (exchanges and reships)
+
+- **Description:** A parallel workflow mirrors much of the order toolkit for replacements—creating and tracking replacement orders, notes, edits, warehouse export, address revalidation, carrier links, and email touches. Lookups describe why a replacement was opened and which staff roles typically create them.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — rebuild with an exchange or replacement app, Shopify-native returns, or a focused custom flow depending on policy.
+
+### Coupons, catalog pickers, and internal reporting
+
+- **Description:** Coupon search and category metadata help campaigns and support apply the right incentives. Product pickers power internal screens that need “what is in this category” lists. Staff can run ad hoc reports and file-based export pipelines, upload inputs where an integration expects them, and review history of those jobs; separate summaries chart order volume over time for operations reviews.
+- **Relevance:** Medium to High (depends how much ops still rely on bespoke in-panel reporting versus BI tools)
+- **Transferability:** **Expect some work** for discounts and catalog surfacing (Shopify discount and product APIs); treat reporting that only lives here as **needs a fresh build** against Shopify data exports or analytics tools.
+
+### Audit trail for staff actions
+
+- **Description:** Records which staff accounts performed sensitive actions—useful for internal quality control and answering “who changed this?” without digging through raw logs.
 - **Relevance:** Medium
-- **Transferability:** Full — order notes exist on Shopify.
+- **Transferability:** **Expect some work** — combine Shopify staff activity where it applies with app event logs or compliance tooling you standardize on.
 
-### `GET /wp-json/pfm-panel/v1/customers/search`
-
-- **Description:** Search customers for support panel.
-- **Relevance:** High
-- **Transferability:** Partial — Admin API customer search.
-
-### `GET /wp-json/pfm-panel/v1/orders/latest-id`
-
-- **Description:** Polling helper for newest order id.
-- **Relevance:** Medium
-- **Transferability:** Not transferable — replace with webhooks.
-
-### `GET /wp-json/pfm-panel/v1/orders/braintree-info`
-
-- **Description:** Braintree payment metadata for an order.
-- **Relevance:** High
-- **Transferability:** Partial — payment app + order transactions.
-
-### `GET /wp-json/pfm-panel/v1/orders/{order_id}/preview`
-
-- **Description:** Order preview (HTML/PDF context — confirm in code).
-- **Relevance:** Medium
-- **Transferability:** Partial.
-
-### `GET /wp-json/pfm-panel/v1/orders/{order_id}/narvar-tracking-url`
-
-- **Description:** Resolve Narvar tracking link for order.
-- **Relevance:** High
-- **Transferability:** Partial — Narvar on Shopify.
-
-### `POST /wp-json/pfm-panel/v1/orders/{id}/resend-email`
-
-- **Description:** Resend transactional email for order.
-- **Relevance:** Medium
-- **Transferability:** Partial — notification APIs.
-
-### `GET /wp-json/pfm-panel/v1/orders/status-counts`
-
-- **Description:** Dashboard counts by order status.
-- **Relevance:** Medium
-- **Transferability:** Partial — GraphQL/Admin API aggregates.
-
-### `GET|POST /wp-json/pfm-panel/v1/subscriptions`
-
-- **Description:** Subscription list/create surface.
-- **Relevance:** High
-- **Transferability:** Partial — Shopify Subscriptions contract APIs.
-
-### `GET|PUT|PATCH /wp-json/pfm-panel/v1/subscriptions/{id}`
-
-- **Description:** Single subscription read/update.
-- **Relevance:** High
-- **Transferability:** Partial.
-
-### `GET /wp-json/pfm-panel/v1/subscriptions/products`
-
-- **Description:** Subscribable products listing for panel.
-- **Relevance:** High
-- **Transferability:** Partial — selling plans on products.
-
-### `POST /wp-json/pfm-panel/v1/subscriptions/{id}/edit`
-
-- **Description:** Subscription line / schedule edits.
-- **Relevance:** High
-- **Transferability:** Partial.
-
-### `POST /wp-json/pfm-panel/v1/subscriptions/{id}/actions`
-
-- **Description:** Subscription actions (pause, cancel, etc. — confirm in code).
-- **Relevance:** High
-- **Transferability:** Partial.
-
-### `GET /wp-json/pfm-panel/v1/subscriptions/by-user/{id}`
-
-- **Description:** Subscriptions for customer.
-- **Relevance:** High
-- **Transferability:** Partial.
-
-### `GET|POST /wp-json/pfm-panel/v1/subscriptions/{subscription_id}/notes`
-
-- **Description:** Subscription notes for ops.
-- **Relevance:** Medium
-- **Transferability:** Partial.
-
-### `POST /wp-json/pfm-panel/v1/orders/{order_id}/retry-payment`
-
-- **Description:** Retry failed renewal or order payment.
-- **Relevance:** High
-- **Transferability:** Partial — dunning in subscription app.
-
-### `POST /wp-json/pfm-panel/v1/orders/{id}/refund`
-
-- **Description:** Issue refund from panel.
-- **Relevance:** High
-- **Transferability:** Partial — Refund Admin API.
-
-### `POST /wp-json/pfm-panel/v1/orders/{id}/refund-via-credits`
-
-- **Description:** Refund path applying store credits.
-- **Relevance:** High
-- **Transferability:** Partial — gift card / credit patterns on Shopify.
-
-### `GET|POST /wp-json/pfm-panel/v1/customers`
-
-- **Description:** Customer list/create for internal tools.
-- **Relevance:** High
-- **Transferability:** Partial — Admin API customers.
-
-### `GET|PUT /wp-json/pfm-panel/v1/customers/{id}`
-
-- **Description:** Customer detail/update.
-- **Relevance:** High
-- **Transferability:** Partial.
-
-### `POST /wp-json/pfm-panel/v1/customers/{id}/assume_user`
-
-- **Description:** Support impersonation / switch-to-customer session helper.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify staff + customer merge policies.
-
-### `GET|POST /wp-json/pfm-panel/v1/customers/{id}/yotpo` and `/yotpo-adjust`
-
-- **Description:** Yotpo points or loyalty adjustments from panel.
-- **Relevance:** Medium
-- **Transferability:** Partial — Yotpo Shopify APIs.
-
-### `GET|POST /wp-json/pfm-panel/v1/customers/{id}/store-credits` and `/store-credits-adjust`
-
-- **Description:** View/adjust Woo store credit balance from panel.
-- **Relevance:** High
-- **Transferability:** Partial — Shopify store credit / gift cards.
-
-### `GET|POST /wp-json/pfm-panel/v1/replacements` (collection + nested)
-
-- **Description:** Replacement order workflow mirroring orders (list, get, notes, edit, export, revalidate, Narvar, resend).
-- **Relevance:** High
-- **Transferability:** Partial — exchanges/replacement apps or custom flows.
-
-### `GET /wp-json/pfm-panel/v1/replacements/reasons` and `/creators`
-
-- **Description:** Metadata for replacement reasons and creating agents.
-- **Relevance:** Medium
-- **Transferability:** Partial — metaobjects or app config.
-
-### `GET|POST /wp-json/pfm-panel/v1/admin-actions` (+ `/action-types`, `/admins`, `/resource-types`)
-
-- **Description:** Audit log / admin action tracking for internal compliance.
-- **Relevance:** Medium
-- **Transferability:** Partial — app event log.
-
-### `POST /wp-json/pfm-panel/v1/reports/run` (+ `/upload`, `/history`)
-
-- **Description:** Run or upload custom CSV/report pipelines from panel.
-- **Relevance:** High
-- **Transferability:** Not transferable — rebuild reporting against Shopify data export.
-
-### `GET /wp-json/pfm-panel/v1/coupons` and `/coupons/categories`
-
-- **Description:** Coupon search and category metadata for ops.
-- **Relevance:** High
-- **Transferability:** Partial — Discount Admin API.
-
-### `GET /wp-json/pfm-panel/v1/stats/orders` and `/stats/orders/timeseries`
-
-- **Description:** Internal analytics for order volume.
-- **Relevance:** Medium
-- **Transferability:** Partial — ShopifyQL / analytics apps.
+_Implementation note for engineers: these capabilities are implemented as WordPress REST routes registered for the `pfm-panel` integration; migration planning should inventory live callers in code and monitoring, not recreate every route name in stakeholder documents._
 
 ## 11. Installed plugins (exhaustive)
-_Total folders: **152** (alphabetical). Each row is one installable component._
+_**149** add-ons below (alphabetical). The bold name is the technical folder name—think of it as the “package label.” If a line sounds vague, that only means the name does not explain itself; your web partner maps it to the real vendor or feature._
+_Omitted from this list on purpose: an unused YITH gift‑card package, the WPMU DEV updater client (licensing only, not storefront behavior), and the separate WPML “strings” package—**translating text that lives inside buttons and add-ons** is described in section 0 instead so stakeholders read the capability once, not under two technical folder names._
+
 ### `PriorityAPI`
+
 - **Description:** Priority ERP API integration.
 - **Relevance:** High
-- **Transferability:** Partial — middleware posting Shopify orders to Priority.
-- **Evidence:** `wp-content/plugins/PriorityAPI`
+- **Transferability:** **Expect some work:** middleware posting Shopify orders to Priority.
+
 ### `PriorityApiCustomCode`
+
 - **Description:** Custom code layer on Priority API.
 - **Relevance:** High
-- **Transferability:** Not transferable — port to middleware.
-- **Evidence:** `wp-content/plugins/PriorityApiCustomCode`
+- **Transferability:** **Needs a fresh build:** port to middleware.
+
 ### `WooCommercePriorityAPI`
+
 - **Description:** Alternate or layered Priority Woo bridge — confirm active.
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/WooCommercePriorityAPI`
+- **Transferability:** **Expect some work:**
+
 ### `account-page-recommended-products`
+
 - **Description:** Recommended products on account page.
 - **Relevance:** Medium
-- **Transferability:** Partial — personalization app or theme.
-- **Evidence:** `wp-content/plugins/account-page-recommended-products`
+- **Transferability:** **Expect some work:** personalization app or theme.
+
 ### `add-search-to-menu`
-- **Description:** Third-party or vendor extension present in `wp-content/plugins/add-search-to-menu/`. Confirm active modules, license, and any customizations in production.
+
+- **Description:** This add-on (folder name **add-search-to-menu**) plugs into today’s WordPress store. It may show up for shoppers, staff, or only behind the scenes. Someone who knows the live admin should confirm whether it is turned on and what it is used for. On Shopify we will match what it does with either a built‑in Shopify feature, a well‑known app, or a small custom project.
 - **Relevance:** Medium
-- **Transferability:** Partial — map to Shopify native feature, first-party channel, or app; validate data migration.
-- **Evidence:** `wp-content/plugins/add-search-to-menu`
+- **Transferability:** **Expect some work:** Shopify usually covers the need, but not always “out of the box”—often an app or short custom setup.
+
 ### `add_upsells_option_ms`
+
 - **Description:** Adds upsell options to subscription/cart flows (custom).
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/add_upsells_option_ms`
+- **Transferability:** **Expect some work:**
+
 ### `advanced-cron-manager`
+
 - **Description:** Cron UI for WP.
 - **Relevance:** Low
-- **Transferability:** N/A — Shopify scheduled jobs via apps.
-- **Evidence:** `wp-content/plugins/advanced-cron-manager`
+- **Transferability:** **Not part of Shopify:** Shopify scheduled jobs via apps.
+
 ### `advanced-custom-fields-pro`
+
 - **Description:** ACF Pro fields on pages/products/options.
 - **Relevance:** High
-- **Transferability:** Partial — metafields + metaobject definitions + admin UI.
-- **Evidence:** `wp-content/plugins/advanced-custom-fields-pro`
+- **Transferability:** **Expect some work:** metafields + metaobject definitions + admin UI.
+
 ### `afterpay-gateway-for-woocommerce`
+
 - **Description:** Afterpay / Clearpay BNPL.
 - **Relevance:** Medium
-- **Transferability:** Partial — Shop Pay Installments / Afterpay Shopify.
-- **Evidence:** `wp-content/plugins/afterpay-gateway-for-woocommerce`
+- **Transferability:** **Expect some work:** Shop Pay Installments / Afterpay Shopify.
+
 ### `aftership-woocommerce-tracking`
+
 - **Description:** AfterShip tracking.
 - **Relevance:** Medium
-- **Transferability:** Partial — AfterShip app.
-- **Evidence:** `wp-content/plugins/aftership-woocommerce-tracking`
+- **Transferability:** **Expect some work:** AfterShip app.
+
 ### `alert-system`
+
 - **Description:** Internal alerts.
 - **Relevance:** Medium
-- **Transferability:** Partial — Slack/email from Flow.
-- **Evidence:** `wp-content/plugins/alert-system`
+- **Transferability:** **Expect some work:** Slack/email from Flow.
+
 ### `all-upsells`
+
 - **Description:** Upsell flows: thank-you page, post-purchase, BAS/PPU modules (see `includes/`).
 - **Relevance:** High
-- **Transferability:** Partial — post-purchase apps, checkout upsell extensions.
-- **Evidence:** `wp-content/plugins/all-upsells`
+- **Transferability:** **Expect some work:** post-purchase apps, checkout upsell extensions.
+
 ### `blotout-edgetag`
+
 - **Description:** Blotout EdgeTag / customer data platform.
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify Customer Privacy + server pixels.
-- **Evidence:** `wp-content/plugins/blotout-edgetag`
+- **Transferability:** **Expect some work:** Shopify Customer Privacy + server pixels.
+
 ### `bluesnap-payment-gateway-for-woocommerce`
+
 - **Description:** BlueSnap payment gateway.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify payment provider availability; may require different PSP.
-- **Evidence:** `wp-content/plugins/bluesnap-payment-gateway-for-woocommerce`
+- **Transferability:** **Expect some work:** Shopify payment provider availability; may require different PSP.
+
 ### `braintree-saved-token-gateway`
+
 - **Description:** Braintree vaulted cards / gateway.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Payments vs Braintree; token migration project.
-- **Evidence:** `wp-content/plugins/braintree-saved-token-gateway`
+- **Transferability:** **Expect some work:** Shopify Payments vs Braintree; token migration project.
+
 ### `card-checkout-ms`
+
 - **Description:** Checkout card UI / testimonial carousel (custom).
 - **Relevance:** Medium
-- **Transferability:** Partial — theme + checkout extensions.
-- **Evidence:** `wp-content/plugins/card-checkout-ms`
+- **Transferability:** **Expect some work:** theme + checkout extensions.
+
 ### `cart-sidebar`
+
 - **Description:** Slide-out cart UI; integrates WPML/WCML currency and product ID mapping.
 - **Relevance:** High
-- **Transferability:** Partial — cart drawer theme + AJAX cart APIs on Shopify.
-- **Evidence:** `wp-content/plugins/cart-sidebar`
+- **Transferability:** **Expect some work:** cart drawer theme + AJAX cart APIs on Shopify.
+
 ### `cart-sidebar-v2`
+
 - **Description:** Alternate cart sidebar implementation — confirm which is primary in production.
 - **Relevance:** Medium
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/cart-sidebar-v2`
+- **Transferability:** **Expect some work:**
+
 ### `codepress-admin-columns`
+
 - **Description:** Admin list column customization.
 - **Relevance:** Low
 - **Transferability:** N/A
-- **Evidence:** `wp-content/plugins/codepress-admin-columns`
+
 ### `complyt-address-validator`
+
 - **Description:** Complyt address validation.
 - **Relevance:** High
-- **Transferability:** Partial — address validation at checkout.
-- **Evidence:** `wp-content/plugins/complyt-address-validator`
+- **Transferability:** **Expect some work:** address validation at checkout.
+
 ### `custom-coupon`
+
 - **Description:** Custom coupon logic beyond core Woo coupons.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Discount Functions / discount apps.
-- **Evidence:** `wp-content/plugins/custom-coupon`
+- **Transferability:** **Expect some work:** Shopify Discount Functions / discount apps.
+
 ### `duracelltomi-google-tag-manager`
+
 - **Description:** GTM container injection and dataLayer.
 - **Relevance:** High
-- **Transferability:** Full — GTM in theme or Shopify app.
-- **Evidence:** `wp-content/plugins/duracelltomi-google-tag-manager`
+- **Transferability:** **Easy move:** GTM in theme or Shopify app.
+
 ### `empty-cart-upsells`
+
 - **Description:** Upsells when cart empty.
 - **Relevance:** Medium
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/empty-cart-upsells`
+- **Transferability:** **Expect some work:**
+
 ### `export-refunds-to-csv`
+
 - **Description:** Export refunds to CSV.
 - **Relevance:** Low
-- **Transferability:** Partial — reporting export from Shopify.
-- **Evidence:** `wp-content/plugins/export-refunds-to-csv`
+- **Transferability:** **Expect some work:** reporting export from Shopify.
+
 ### `export-stats`
+
 - **Description:** Export stats to Google Sheets.
 - **Relevance:** Medium
-- **Transferability:** Partial — Analytics API / Sheets.
-- **Evidence:** `wp-content/plugins/export-stats`
+- **Transferability:** **Expect some work:** Analytics API / Sheets.
+
 ### `facebook-store-integration`
+
 - **Description:** Facebook / Meta catalog integration.
 - **Relevance:** Medium
-- **Transferability:** Partial — Meta sales channel.
-- **Evidence:** `wp-content/plugins/facebook-store-integration`
+- **Transferability:** **Expect some work:** Meta sales channel.
+
 ### `fermiac-siftscience-for-woocommerce`
+
 - **Description:** Sift Science integration for Woo.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Fraud / third-party.
-- **Evidence:** `wp-content/plugins/fermiac-siftscience-for-woocommerce`
+- **Transferability:** **Expect some work:** Shopify Fraud / third-party.
+
 ### `force-default-variant-for-woocommerce`
+
 - **Description:** Forces default variation selection when variations exist.
 - **Relevance:** Low
-- **Transferability:** Partial — rarely needed if SKUs are simple; confirm use.
-- **Evidence:** `wp-content/plugins/force-default-variant-for-woocommerce`
+- **Transferability:** **Expect some work:** rarely needed if SKUs are simple; confirm use.
+
 ### `force-regenerate-thumbnails`
+
 - **Description:** Regenerate attachment sizes.
 - **Relevance:** Low
 - **Transferability:** N/A
-- **Evidence:** `wp-content/plugins/force-regenerate-thumbnails`
+
 ### `gravite-landing-pages`
+
 - **Description:** Gravité-specific landing page templates.
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/gravite-landing-pages`
+- **Transferability:** **Expect some work:**
+
 ### `impact-partnership-cloud`
+
 - **Description:** Impact affiliate / partnership tracking.
 - **Relevance:** Medium
-- **Transferability:** Partial — Impact Shopify integration.
-- **Evidence:** `wp-content/plugins/impact-partnership-cloud`
+- **Transferability:** **Expect some work:** Impact Shopify integration.
+
 ### `inspect-http-requests`
+
 - **Description:** Inspect HTTP requests in admin.
 - **Relevance:** Low
 - **Transferability:** N/A
-- **Evidence:** `wp-content/plugins/inspect-http-requests`
+
 ### `japan-landing-pages`
+
 - **Description:** Japan market landing pages.
 - **Relevance:** Medium
-- **Transferability:** Partial — Markets + templates.
-- **Evidence:** `wp-content/plugins/japan-landing-pages`
+- **Transferability:** **Expect some work:** Markets + templates.
+
 ### `kadence-woocommerce-email-designer`
+
 - **Description:** Kadence Woo email template designer.
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify Notifications customization.
-- **Evidence:** `wp-content/plugins/kadence-woocommerce-email-designer`
+- **Transferability:** **Expect some work:** Shopify Notifications customization.
+
 ### `klaviyo`
+
 - **Description:** Klaviyo official Woo plugin: events, lists, forms.
 - **Relevance:** High
-- **Transferability:** Full — Klaviyo Shopify integration.
-- **Evidence:** `wp-content/plugins/klaviyo`
+- **Transferability:** **Easy move:** Klaviyo Shopify integration.
+
 ### `klaviyo-wp`
+
 - **Description:** Additional Klaviyo WordPress integration package.
 - **Relevance:** High
 - **Transferability:** Full
-- **Evidence:** `wp-content/plugins/klaviyo-wp`
+
 ### `kount-fraud-prevention`
+
 - **Description:** Kount fraud screening on checkout.
 - **Relevance:** High
-- **Transferability:** Partial — Kount for Shopify or equivalent.
-- **Evidence:** `wp-content/plugins/kount-fraud-prevention`
+- **Transferability:** **Expect some work:** Kount for Shopify or equivalent.
+
 ### `kount-orders-report`
-- **Description:** Third-party or vendor extension present in `wp-content/plugins/kount-orders-report/`. Confirm active modules, license, and any customizations in production.
+
+- **Description:** This add-on (folder name **kount-orders-report**) plugs into today’s WordPress store. It may show up for shoppers, staff, or only behind the scenes. Someone who knows the live admin should confirm whether it is turned on and what it is used for. On Shopify we will match what it does with either a built‑in Shopify feature, a well‑known app, or a small custom project.
 - **Relevance:** Medium
-- **Transferability:** Partial — map to Shopify native feature, first-party channel, or app; validate data migration.
-- **Evidence:** `wp-content/plugins/kount-orders-report`
+- **Transferability:** **Expect some work:** Shopify usually covers the need, but not always “out of the box”—often an app or short custom setup.
+
 ### `landing-pages`
+
 - **Description:** Landing page plugin with blocks and templates (e.g. Marsmen-like LP).
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Pages + metaobjects + theme sections.
-- **Evidence:** `wp-content/plugins/landing-pages`
+- **Transferability:** **Expect some work:** Shopify Pages + metaobjects + theme sections.
+
 ### `livecart-by-wp-engine`
+
 - **Description:** WP Engine LiveCart integration.
 - **Relevance:** Low
-- **Transferability:** N/A — host-specific.
-- **Evidence:** `wp-content/plugins/livecart-by-wp-engine`
+- **Transferability:** **Not part of Shopify:** host-specific.
+
 ### `loco-translate`
+
 - **Description:** Translate theme/plugin strings locally.
 - **Relevance:** Medium
-- **Transferability:** Partial — locale JSON / Markets.
-- **Evidence:** `wp-content/plugins/loco-translate`
+- **Transferability:** **Expect some work:** locale JSON / Markets.
+
 ### `log-http-requests`
+
 - **Description:** Logs outbound HTTP for debugging.
 - **Relevance:** Low
 - **Transferability:** N/A
-- **Evidence:** `wp-content/plugins/log-http-requests`
+
 ### `login-visit-counter`
+
 - **Description:** Tracks login visits.
 - **Relevance:** Low
 - **Transferability:** N/A
-- **Evidence:** `wp-content/plugins/login-visit-counter`
+
 ### `metorik-helper`
+
 - **Description:** Metorik analytics helper for Woo.
 - **Relevance:** Medium
-- **Transferability:** Partial — Metorik Shopify.
-- **Evidence:** `wp-content/plugins/metorik-helper`
+- **Transferability:** **Expect some work:** Metorik Shopify.
+
 ### `metronet-profile-picture`
+
 - **Description:** Profile pictures for users.
 - **Relevance:** Low
-- **Transferability:** Partial — customer account profile apps.
-- **Evidence:** `wp-content/plugins/metronet-profile-picture`
+- **Transferability:** **Expect some work:** customer account profile apps.
+
 ### `myplugin`
+
 - **Description:** Placeholder or small custom plugin — audit contents.
 - **Relevance:** Low
-- **Transferability:** Not transferable — audit contents.
-- **Evidence:** `wp-content/plugins/myplugin`
+- **Transferability:** **Needs a fresh build:** ask engineering what this small package actually does.
+
 ### `myscripts`
+
 - **Description:** Custom scripts plugin (site-specific).
 - **Relevance:** Medium
-- **Transferability:** Not transferable — audit contents.
-- **Evidence:** `wp-content/plugins/myscripts`
+- **Transferability:** **Needs a fresh build:** ask engineering what this small package actually does.
+
 ### `narvar-tracking-integration`
+
 - **Description:** Narvar post-purchase tracking / comms.
 - **Relevance:** High
-- **Transferability:** Partial — Narvar Shopify integration.
-- **Evidence:** `wp-content/plugins/narvar-tracking-integration`
+- **Transferability:** **Expect some work:** Narvar Shopify integration.
+
 ### `newrelic-transaction-renamer`
+
 - **Description:** Renames New Relic transactions for WP.
 - **Relevance:** Low
 - **Transferability:** N/A
-- **Evidence:** `wp-content/plugins/newrelic-transaction-renamer`
+
 ### `optinmonster`
+
 - **Description:** OptinMonster lead capture.
 - **Relevance:** Medium
-- **Transferability:** Partial — OM Shopify embed.
-- **Evidence:** `wp-content/plugins/optinmonster`
+- **Transferability:** **Expect some work:** OM Shopify embed.
+
 ### `orders-pay-verify`
+
 - **Description:** Order pay verification flow.
 - **Relevance:** Medium
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/orders-pay-verify`
+- **Transferability:** **Expect some work:**
+
 ### `orderswidget-summary`
-- **Description:** REST `orderswidget/v1/summary` for order summaries.
+
+- **Description:** Small internal API that shows order summaries inside WordPress admin widgets.
 - **Relevance:** Low
-- **Transferability:** Not transferable
-- **Evidence:** `wp-content/plugins/orderswidget-summary`
+- **Transferability:** **Not part of Shopify:** rebuild in a staff dashboard or BI tool if still needed.
+
 ### `outersignal-order-export`
+
 - **Description:** Order export to Outersignal.
 - **Relevance:** Medium
-- **Transferability:** Partial — webhooks.
-- **Evidence:** `wp-content/plugins/outersignal-order-export`
+- **Transferability:** **Expect some work:** webhooks.
+
 ### `package_protection_ms`
+
 - **Description:** Package protection upsell on checkout.
 - **Relevance:** Medium
-- **Transferability:** Partial — shipping protection apps.
-- **Evidence:** `wp-content/plugins/package_protection_ms`
+- **Transferability:** **Expect some work:** shipping protection apps.
+
 ### `particleformen-checkout`
-- **Description:** Custom checkout behaviors for Particle (see plugin + theme `lib/checkout.php`).
+
+- **Description:** Particle‑specific checkout tweaks layered on top of WooCommerce (together with the theme checkout code).
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Checkout extensibility (UI extensions, Functions) + apps.
-- **Evidence:** `wp-content/plugins/particleformen-checkout`
+- **Transferability:** **Expect some work:** Shopify Checkout allows apps and small UI extensions instead of the old PHP approach.
+
 ### `pfm-chargebacks-utils`
+
 - **Description:** Chargeback utilities + REST.
 - **Relevance:** Medium
-- **Transferability:** Partial — payment processor dashboards.
-- **Evidence:** `wp-content/plugins/pfm-chargebacks-utils`
+- **Transferability:** **Expect some work:** payment processor dashboards.
+
 ### `pfm-checkout-bot-block`
+
 - **Description:** Bot blocking on checkout.
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify bot protection + CAPTCHA apps.
-- **Evidence:** `wp-content/plugins/pfm-checkout-bot-block`
+- **Transferability:** **Expect some work:** Shopify bot protection + CAPTCHA apps.
+
 ### `pfm-checkout-observer`
+
 - **Description:** Observes checkout events (logging / risk / analytics — confirm).
 - **Relevance:** High
-- **Transferability:** Partial — webhooks + Flow.
-- **Evidence:** `wp-content/plugins/pfm-checkout-observer`
+- **Transferability:** **Expect some work:** webhooks + Flow.
+
 ### `pfm-csv-uploader`
+
 - **Description:** Admin CSV upload utilities.
 - **Relevance:** Medium
-- **Transferability:** N/A — Shopify bulk import / Admin API.
-- **Evidence:** `wp-content/plugins/pfm-csv-uploader`
+- **Transferability:** **Not part of Shopify:** Shopify bulk import / Admin API.
+
 ### `pfm-geo-privacy`
+
 - **Description:** Geo / privacy gate (REST namespace).
 - **Relevance:** High
-- **Transferability:** Partial — Markets + consent apps.
-- **Evidence:** `wp-content/plugins/pfm-geo-privacy`
+- **Transferability:** **Expect some work:** Markets + consent apps.
+
 ### `pfm-holiday-season`
+
 - **Description:** Seasonal promos / toggles.
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify scheduled discounts.
-- **Evidence:** `wp-content/plugins/pfm-holiday-season`
+- **Transferability:** **Expect some work:** Shopify scheduled discounts.
+
 ### `pfm-kill-injected-ui`
-- **Description:** Removes unwanted injected admin or frontend UI.
+
+- **Description:** Hides stray admin or storefront UI injected by other tools.
 - **Relevance:** Low
-- **Transferability:** N/A
-- **Evidence:** `wp-content/plugins/pfm-kill-injected-ui`
+- **Transferability:** **Not part of Shopify:** WordPress-only housekeeping.
+
 ### `pfm-klaviyo-monitor`
+
 - **Description:** Monitoring / hooks for Klaviyo health.
 - **Relevance:** Low
-- **Transferability:** N/A — ops tooling; replace with monitoring on new stack.
-- **Evidence:** `wp-content/plugins/pfm-klaviyo-monitor`
+- **Transferability:** **Not part of Shopify:** ops tooling; replace with monitoring on new stack.
+
 ### `pfm-monday-coupons`
+
 - **Description:** REST-driven coupon integration (Monday workflow).
 - **Relevance:** Medium
-- **Transferability:** Partial — Zapier/Flow + discount APIs.
-- **Evidence:** `wp-content/plugins/pfm-monday-coupons`
+- **Transferability:** **Expect some work:** Zapier/Flow + discount APIs.
+
 ### `pfm-panel`
-- **Description:** Internal operations REST API (`pfm-panel/v1`): orders, subscriptions, refunds, customers, coupons, replacements, reports, warehouse export, Narvar, Braintree info, stats, admin actions.
+
+- **Description:** The internal “mission control” staff use to search orders, resend emails, push refunds, adjust store credit, export to the warehouse, and similar day‑to‑day jobs.
 - **Relevance:** High
-- **Transferability:** Not transferable — replace with Shopify Admin API + custom internal app or Retool.
-- **Evidence:** `wp-content/plugins/pfm-panel`
+- **Transferability:** **Needs a fresh build:** Shopify Admin plus Flow/partner apps—or a lightweight custom dashboard—replace this over time.
+
 ### `pfm-signifyd-integration`
+
 - **Description:** Signifyd fraud scoring / order submission.
 - **Relevance:** High
-- **Transferability:** Partial — Signifyd Shopify app or custom integration.
-- **Evidence:** `wp-content/plugins/pfm-signifyd-integration`
+- **Transferability:** **Expect some work:** Signifyd Shopify app or custom integration.
+
 ### `pfm-skincare-quiz`
+
 - **Description:** Particle skincare quiz templates and flow.
 - **Relevance:** High
-- **Transferability:** Partial — rebuild as theme section or app.
-- **Evidence:** `wp-content/plugins/pfm-skincare-quiz`
+- **Transferability:** **Expect some work:** rebuild as theme section or app.
+
 ### `pfm-smarty-address-validator`
+
 - **Description:** Smarty (USPS) address validation.
 - **Relevance:** High
-- **Transferability:** Partial — Smarty or equivalent on Shopify.
-- **Evidence:** `wp-content/plugins/pfm-smarty-address-validator`
+- **Transferability:** **Expect some work:** Smarty or equivalent on Shopify.
+
 ### `pfm-store-credits`
+
 - **Description:** Store credit balance and checkout application (frontend + admin).
 - **Relevance:** High
-- **Transferability:** Partial — Shopify store credit / gift card primitives differ; likely app or custom.
-- **Evidence:** `wp-content/plugins/pfm-store-credits`
+- **Transferability:** **Expect some work:** Shopify store credit / gift card primitives differ; likely app or custom.
+
 ### `pfm-tools-utils`
+
 - **Description:** Misc internal tools + REST routes.
 - **Relevance:** Medium
-- **Transferability:** Not transferable
-- **Evidence:** `wp-content/plugins/pfm-tools-utils`
+- **Transferability:** **Needs a fresh build:** review with engineering before promising dates.
+
 ### `pixelyoursite-pro`
+
 - **Description:** PixelYourSite: Meta/CAPI/GA events.
 - **Relevance:** High
-- **Transferability:** Partial — PYS Shopify or server events.
-- **Evidence:** `wp-content/plugins/pixelyoursite-pro`
+- **Transferability:** **Expect some work:** PYS Shopify or server events.
+
 ### `pixelyoursite-super-pack`
+
 - **Description:** PYS add-on pack.
 - **Relevance:** Medium
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/pixelyoursite-super-pack`
+- **Transferability:** **Expect some work:**
+
 ### `post-duplicator`
+
 - **Description:** Duplicate posts/pages for editors.
 - **Relevance:** Low
-- **Transferability:** N/A — editor workflow.
-- **Evidence:** `wp-content/plugins/post-duplicator`
+- **Transferability:** **Not part of Shopify:** editor workflow.
+
 ### `post-orders-to-priority`
+
 - **Description:** Pushes orders to Priority system.
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/post-orders-to-priority`
+- **Transferability:** **Expect some work:**
+
 ### `post-purchase-upsell`
+
 - **Description:** Post-purchase one-click upsell.
 - **Relevance:** High
-- **Transferability:** Partial — post-purchase apps.
-- **Evidence:** `wp-content/plugins/post-purchase-upsell`
+- **Transferability:** **Expect some work:** post-purchase apps.
+
 ### `post-smtp`
+
 - **Description:** SMTP mailer for WP emails.
 - **Relevance:** Medium
-- **Transferability:** N/A — Shopify email domain; transactional via apps.
-- **Evidence:** `wp-content/plugins/post-smtp`
+- **Transferability:** **Not part of Shopify:** Shopify email domain; transactional via apps.
+
 ### `preorder-products`
+
 - **Description:** Preorder selling for products.
 - **Relevance:** Medium
-- **Transferability:** Partial — preorder apps.
-- **Evidence:** `wp-content/plugins/preorder-products`
+- **Transferability:** **Expect some work:** preorder apps.
+
 ### `product-guide`
+
 - **Description:** Product guide experience.
 - **Relevance:** Medium
-- **Transferability:** Partial — content pages + metafields.
-- **Evidence:** `wp-content/plugins/product-guide`
+- **Transferability:** **Expect some work:** content pages + metafields.
+
 ### `product-landing-pages`
+
 - **Description:** Product-scoped landing experiences.
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/product-landing-pages`
+- **Transferability:** **Expect some work:**
+
 ### `purchase-push-notifications`
+
 - **Description:** Push notifications on purchase.
 - **Relevance:** Low
-- **Transferability:** Partial — mobile app channel if applicable.
-- **Evidence:** `wp-content/plugins/purchase-push-notifications`
+- **Transferability:** **Expect some work:** mobile app channel if applicable.
+
 ### `quiz`
+
 - **Description:** Generic quiz plugin for Particle.
 - **Relevance:** Medium
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/quiz`
+- **Transferability:** **Expect some work:**
+
 ### `recaptcha-for-woocommerce`
+
 - **Description:** reCAPTCHA on Woo checkout/account.
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify bot challenge / apps.
-- **Evidence:** `wp-content/plugins/recaptcha-for-woocommerce`
+- **Transferability:** **Expect some work:** Shopify bot challenge / apps.
+
 ### `redirection`
+
 - **Description:** 301/302 redirect manager and logs.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify URL redirects (import).
-- **Evidence:** `wp-content/plugins/redirection`
+- **Transferability:** **Expect some work:** Shopify URL redirects (import).
+
 ### `richpanel-for-woocommerce`
+
 - **Description:** Richpanel helpdesk + customer timeline for Woo orders.
 - **Relevance:** High
-- **Transferability:** Partial — Richpanel Shopify app.
-- **Evidence:** `wp-content/plugins/richpanel-for-woocommerce`
+- **Transferability:** **Expect some work:** Richpanel Shopify app.
+
 ### `scheduled-actions`
+
 - **Description:** Action Scheduler tables (often bundled with Woo).
 - **Relevance:** Medium
-- **Transferability:** N/A — platform cron/queues differ.
-- **Evidence:** `wp-content/plugins/scheduled-actions`
+- **Transferability:** **Not part of Shopify:** platform cron/queues differ.
+
 ### `sellence-api`
+
 - **Description:** Sellence REST API (`/products`, `/coupons`).
 - **Relevance:** Medium
-- **Transferability:** Partial — custom app on Shopify.
-- **Evidence:** `wp-content/plugins/sellence-api`
+- **Transferability:** **Expect some work:** custom app on Shopify.
+
 ### `shipbob-integration`
+
 - **Description:** ShipBob fulfillment integration.
 - **Relevance:** High
-- **Transferability:** Partial — ShipBob Shopify connector or order webhook app.
-- **Evidence:** `wp-content/plugins/shipbob-integration`
+- **Transferability:** **Expect some work:** ShipBob Shopify connector or order webhook app.
+
 ### `show-current-template`
+
 - **Description:** Dev: shows current PHP template.
 - **Relevance:** Low
 - **Transferability:** N/A
-- **Evidence:** `wp-content/plugins/show-current-template`
+
 ### `sift-wp`
+
 - **Description:** Sift-related WordPress glue.
 - **Relevance:** Medium
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/sift-wp`
+- **Transferability:** **Expect some work:**
+
 ### `sitemap-custom`
+
 - **Description:** Custom sitemap generation for Particle.
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify sitemap + hreflang via Markets.
-- **Evidence:** `wp-content/plugins/sitemap-custom`
+- **Transferability:** **Expect some work:** Shopify sitemap + hreflang via Markets.
+
 ### `sitepress-multilingual-cms`
-- **Description:** WPML core: multilingual posts, menus, hreflang, translation workflow. Deep integration in theme (`wpml_*` filters), cart, optimization.
+
+- **Description:** Runs the store’s multiple languages—translated pages, menus, and the correct links for Google in each country.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Markets + Translate & Adapt (or third-party); URL/hreflang rules must be redesigned.
-- **Evidence:** `wp-content/plugins/sitepress-multilingual-cms`
+- **Transferability:** **Expect some work:** Shopify Markets plus translation tools replace most of this, but bookmarks and URLs need a careful plan.
+
 ### `sky-wcs-no-periods`
+
 - **Description:** Cleans subscription product titles (removes periods).
 - **Relevance:** Low
-- **Transferability:** Partial — naming in Shopify subscriptions.
-- **Evidence:** `wp-content/plugins/sky-wcs-no-periods`
+- **Transferability:** **Expect some work:** naming in Shopify subscriptions.
+
 ### `smtp-mailgun-connector`
+
 - **Description:** Mailgun SMTP connector.
 - **Relevance:** Low
 - **Transferability:** N/A
-- **Evidence:** `wp-content/plugins/smtp-mailgun-connector`
+
 ### `special-shipping-methods`
+
 - **Description:** Custom shipping methods / rules.
 - **Relevance:** High
-- **Transferability:** Partial — carrier service + Functions or shipping apps.
-- **Evidence:** `wp-content/plugins/special-shipping-methods`
+- **Transferability:** **Expect some work:** carrier service + Functions or shipping apps.
+
 ### `stampedio`
+
 - **Description:** Stamped.io reviews widgets / integration.
 - **Relevance:** High
-- **Transferability:** Partial — Stamped Shopify.
-- **Evidence:** `wp-content/plugins/stampedio`
+- **Transferability:** **Expect some work:** Stamped Shopify.
+
 ### `stampedio-product-reviews`
+
 - **Description:** Stamped product reviews companion.
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/stampedio-product-reviews`
+- **Transferability:** **Expect some work:**
+
 ### `sticky-cta`
+
 - **Description:** Sticky CTA bar.
 - **Relevance:** Medium
-- **Transferability:** Partial — theme.
-- **Evidence:** `wp-content/plugins/sticky-cta`
+- **Transferability:** **Expect some work:** theme.
+
 ### `subscriptions-utils`
-- **Description:** Custom utilities around Woo subscriptions (see plugin code for hooks).
+
+- **Description:** Particle‑specific helpers that tweak how subscriptions behave behind the scenes.
 - **Relevance:** High
-- **Transferability:** Not transferable — rebuild in Shopify Flow / subscription app / custom app as needed.
-- **Evidence:** `wp-content/plugins/subscriptions-utils`
+- **Transferability:** **Needs a fresh build:** replan each behavior inside Shopify Flow, a subscription partner, or a small custom service.
+
 ### `tax-helper`
+
 - **Description:** Tax helper utilities for Woo.
 - **Relevance:** Medium
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/tax-helper`
+- **Transferability:** **Expect some work:**
+
 ### `ticket-submissions`
+
 - **Description:** Support ticket submission from site.
 - **Relevance:** Medium
-- **Transferability:** Partial — forms app / Zendesk / Gorgias.
-- **Evidence:** `wp-content/plugins/ticket-submissions`
+- **Transferability:** **Expect some work:** forms app / Zendesk / Gorgias.
+
 ### `tiktok-shop-integration`
+
 - **Description:** TikTok Shop / catalog sync.
 - **Relevance:** Medium
-- **Transferability:** Partial — TikTok for Shopify.
-- **Evidence:** `wp-content/plugins/tiktok-shop-integration`
+- **Transferability:** **Expect some work:** TikTok for Shopify.
+
 ### `tinymce-advanced`
+
 - **Description:** Classic editor enhancements.
 - **Relevance:** Low
 - **Transferability:** N/A
-- **Evidence:** `wp-content/plugins/tinymce-advanced`
+
 ### `trustpilot-integration`
+
 - **Description:** Trustpilot integration glue.
 - **Relevance:** Medium
 - **Transferability:** Full
-- **Evidence:** `wp-content/plugins/trustpilot-integration`
+
 ### `trustpilot-widget`
+
 - **Description:** Trustpilot widget embed.
 - **Relevance:** Medium
-- **Transferability:** Full — Trustpilot Shopify app/widget.
-- **Evidence:** `wp-content/plugins/trustpilot-widget`
+- **Transferability:** **Easy move:** Trustpilot Shopify app/widget.
+
 ### `try-before-you-buy`
+
 - **Description:** Try before you buy program.
 - **Relevance:** Medium
-- **Transferability:** Partial — TBYB apps.
-- **Evidence:** `wp-content/plugins/try-before-you-buy`
+- **Transferability:** **Expect some work:** TBYB apps.
+
 ### `two-factor-authentication-premium`
+
 - **Description:** 2FA for WP admin/logins.
 - **Relevance:** Medium
-- **Transferability:** N/A — Shopify org security; customer 2FA via apps if needed.
-- **Evidence:** `wp-content/plugins/two-factor-authentication-premium`
+- **Transferability:** **Not part of Shopify:** Shopify org security; customer 2FA via apps if needed.
+
 ### `user-role-editor`
+
 - **Description:** WP role/capability editor.
 - **Relevance:** Low
-- **Transferability:** N/A — Shopify staff permissions.
-- **Evidence:** `wp-content/plugins/user-role-editor`
+- **Transferability:** **Not part of Shopify:** Shopify staff permissions.
+
 ### `user-switching`
+
 - **Description:** Switch user for support testing.
 - **Relevance:** Low
-- **Transferability:** N/A — Shopify staff impersonation patterns differ.
-- **Evidence:** `wp-content/plugins/user-switching`
+- **Transferability:** **Not part of Shopify:** Shopify staff impersonation patterns differ.
+
 ### `walmart-marketplace-integration`
+
 - **Description:** Walmart marketplace listing / orders.
 - **Relevance:** Medium
-- **Transferability:** Partial — Walmart Shopify channel.
-- **Evidence:** `wp-content/plugins/walmart-marketplace-integration`
+- **Transferability:** **Expect some work:** Walmart Shopify channel.
+
 ### `warehouse-export`
+
 - **Description:** Warehouse export + REST webhooks (ShipBob, Green warehouse classes).
 - **Relevance:** High
-- **Transferability:** Partial — OMS integration via Shopify webhooks + custom middleware.
-- **Evidence:** `wp-content/plugins/warehouse-export`
+- **Transferability:** **Expect some work:** OMS integration via Shopify webhooks + custom middleware.
+
 ### `wc-admin-product-note`
+
 - **Description:** Product notes in admin for ops.
 - **Relevance:** Low
-- **Transferability:** Partial — Shopify order/product notes pattern.
-- **Evidence:** `wp-content/plugins/wc-admin-product-note`
+- **Transferability:** **Expect some work:** Shopify order/product notes pattern.
+
 ### `wc-remove-oldest-orders`
+
 - **Description:** Housekeeping: remove old orders from DB.
 - **Relevance:** Low
-- **Transferability:** N/A — WP-only maintenance.
-- **Evidence:** `wp-content/plugins/wc-remove-oldest-orders`
+- **Transferability:** **Not part of Shopify:** WP-only maintenance.
+
 ### `webp-express`
+
 - **Description:** WebP image conversion/delivery.
 - **Relevance:** Low
-- **Transferability:** Partial — Shopify image CDN handles formats.
-- **Evidence:** `wp-content/plugins/webp-express`
+- **Transferability:** **Expect some work:** Shopify image CDN handles formats.
+
 ### `woo-discount-rules`
+
 - **Description:** Discount Rules for WooCommerce (conditional cart rules).
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Functions + discount apps.
-- **Evidence:** `wp-content/plugins/woo-discount-rules`
+- **Transferability:** **Expect some work:** Shopify Functions + discount apps.
+
 ### `woo-discount-rules-pro`
+
 - **Description:** Pro tier for Discount Rules (extra rule types).
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/woo-discount-rules-pro`
+- **Transferability:** **Expect some work:**
+
 ### `woo-payment-gateway`
+
 - **Description:** Payment gateway package (often card UI / blocks).
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/woo-payment-gateway`
+- **Transferability:** **Expect some work:**
+
 ### `woocommerce`
+
 - **Description:** WooCommerce core (cart, checkout, products, orders). Entire commerce layer to be replaced by Shopify.
 - **Relevance:** High
-- **Transferability:** Not transferable — platform replacement.
-- **Evidence:** `wp-content/plugins/woocommerce`
+- **Transferability:** **Needs a fresh build:** platform replacement.
+
 ### `woocommerce-avatax`
+
 - **Description:** Avalara AvaTax for Woo.
 - **Relevance:** Medium
-- **Transferability:** Partial — Avalara Shopify.
-- **Evidence:** `wp-content/plugins/woocommerce-avatax`
+- **Transferability:** **Expect some work:** Avalara Shopify.
+
 ### `woocommerce-cart-page`
+
 - **Description:** Custom cart page behavior/routing.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify cart template + apps.
-- **Evidence:** `wp-content/plugins/woocommerce-cart-page`
+- **Transferability:** **Expect some work:** Shopify cart template + apps.
+
 ### `woocommerce-checkout-userdata`
+
 - **Description:** Extra checkout user data capture.
 - **Relevance:** Medium
-- **Transferability:** Partial — checkout UI extensions + metafields.
-- **Evidence:** `wp-content/plugins/woocommerce-checkout-userdata`
+- **Transferability:** **Expect some work:** checkout UI extensions + metafields.
+
 ### `woocommerce-complyt-tax`
+
 - **Description:** Complyt tax calculation.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Tax / tax apps.
-- **Evidence:** `wp-content/plugins/woocommerce-complyt-tax`
+- **Transferability:** **Expect some work:** Shopify Tax / tax apps.
+
 ### `woocommerce-coupons-utils`
+
 - **Description:** Utilities for coupon management/reporting.
 - **Relevance:** Medium
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/woocommerce-coupons-utils`
+- **Transferability:** **Expect some work:**
+
 ### `woocommerce-gateway-paypal-express-checkout`
+
 - **Description:** PayPal Express checkout.
 - **Relevance:** High
-- **Transferability:** Full — PayPal on Shopify.
-- **Evidence:** `wp-content/plugins/woocommerce-gateway-paypal-express-checkout`
+- **Transferability:** **Easy move:** PayPal on Shopify.
+
 ### `woocommerce-google-address`
+
 - **Description:** Google Places autocomplete on address fields.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify address autocomplete / apps.
-- **Evidence:** `wp-content/plugins/woocommerce-google-address`
+- **Transferability:** **Expect some work:** Shopify address autocomplete / apps.
+
 ### `woocommerce-legacy-rest-api`
+
 - **Description:** Legacy Woo REST API compatibility.
 - **Relevance:** Low
-- **Transferability:** N/A — any consumers must move to Shopify Admin API.
-- **Evidence:** `wp-content/plugins/woocommerce-legacy-rest-api`
+- **Transferability:** **Not part of Shopify:** any consumers must move to Shopify Admin API.
+
 ### `woocommerce-magazine`
+
 - **Description:** Magazine / editorial integration with Woo (see plugin).
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify blog Online Store.
-- **Evidence:** `wp-content/plugins/woocommerce-magazine`
+- **Transferability:** **Expect some work:** Shopify blog Online Store.
+
 ### `woocommerce-multilingual`
-- **Description:** WCML: multi-currency with WPML, exchange rates, client currency. Theme `wcml_custom_currency` maps language codes to ISO currencies.
+
+- **Description:** Pairs languages with the right currency and exchange rates so visitors see familiar money symbols.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Markets handles currency/locale differently; custom language→currency matrix must be reimplemented or dropped.
-- **Evidence:** `wp-content/plugins/woocommerce-multilingual`
+- **Transferability:** **Expect some work:** Shopify Markets covers the same idea with different settings; any special rules must be re‑entered.
+
 ### `woocommerce-my-account`
+
 - **Description:** Custom My Account SPA/loader and flows.
 - **Relevance:** High
-- **Transferability:** Partial — Customer Account API / legacy customer accounts strategy.
-- **Evidence:** `wp-content/plugins/woocommerce-my-account`
+- **Transferability:** **Expect some work:** Customer Account API / legacy customer accounts strategy.
+
 ### `woocommerce-quiz`
+
 - **Description:** Quiz tied to Woo products.
 - **Relevance:** Medium
-- **Transferability:** Partial — third-party quiz app or custom theme.
-- **Evidence:** `wp-content/plugins/woocommerce-quiz`
+- **Transferability:** **Expect some work:** third-party quiz app or custom theme.
+
 ### `woocommerce-reminder-pro`
+
 - **Description:** Abandoned cart or reminder emails.
 - **Relevance:** Medium
-- **Transferability:** Partial — Klaviyo + Shopify checkout abandonment.
-- **Evidence:** `wp-content/plugins/woocommerce-reminder-pro`
+- **Transferability:** **Expect some work:** Klaviyo + Shopify checkout abandonment.
+
 ### `woocommerce-replacement-orders`
+
 - **Description:** Replacement order workflow tied to Woo orders.
 - **Relevance:** High
-- **Transferability:** Partial — draft orders / exchanges apps / custom.
-- **Evidence:** `wp-content/plugins/woocommerce-replacement-orders`
+- **Transferability:** **Expect some work:** draft orders / exchanges apps / custom.
+
 ### `woocommerce-services`
+
 - **Description:** WooCommerce Shipping / tax (USPS etc. depending on config).
 - **Relevance:** Medium
-- **Transferability:** Partial — Shopify Shipping.
-- **Evidence:** `wp-content/plugins/woocommerce-services`
+- **Transferability:** **Expect some work:** Shopify Shipping.
+
 ### `woocommerce-shipment-tracking`
+
 - **Description:** Woo shipment tracking meta on orders.
 - **Relevance:** High
-- **Transferability:** Partial — native tracking + carrier apps.
-- **Evidence:** `wp-content/plugins/woocommerce-shipment-tracking`
+- **Transferability:** **Expect some work:** native tracking + carrier apps.
+
 ### `woocommerce-shipstation-integration`
-- **Description:** ShipStation labels and tracking.
-- **Relevance:** High
-- **Transferability:** Partial — ShipStation Shopify app.
-- **Evidence:** `wp-content/plugins/woocommerce-shipstation-integration`
+
+- **Description:** WooCommerce ShipStation plugin folder exists in the repo; **Particle does not use ShipStation** operationally—no migration to Shopify ShipStation. Deactivate/uninstall with WordPress.
+- **Relevance:** Low
+- **Transferability:** **Not part of Shopify:** not in scope; remove dead plugin during decommission.
+
 ### `woocommerce-siftscience-extensions`
+
 - **Description:** Extensions for Sift + Woo.
 - **Relevance:** Medium
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/woocommerce-siftscience-extensions`
+- **Transferability:** **Expect some work:**
+
 ### `woocommerce-smart-coupons`
+
 - **Description:** Smart Coupons: store credit, gift certificates, bulk coupons, blocks.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify gift cards / discount combinations via apps.
-- **Evidence:** `wp-content/plugins/woocommerce-smart-coupons`
+- **Transferability:** **Expect some work:** Shopify gift cards / discount combinations via apps.
+
 ### `woocommerce-subscription`
-- **Description:** Additional subscription-related plugin (custom or companion) alongside WCS — verify relationship in admin.
+
+- **Description:** Companion tools that sit next to the main subscription engine—confirm with the web team whether both are active.
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/woocommerce-subscription`
+- **Transferability:** **Expect some work:**
+
 ### `woocommerce-subscriptions`
-- **Description:** WooCommerce Subscriptions: recurring orders, renewal payments, subscription products, customer portal hooks. Theme has recurring checkout templates.
+
+- **Description:** Powers subscribe‑and‑save: renewals, failed payment retries, and customer self‑service for delivery schedules.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify Subscriptions / selling plans; plan matrix and dunning must be mapped.
-- **Evidence:** `wp-content/plugins/woocommerce-subscriptions`
+- **Transferability:** **Expect some work:** Shopify’s subscription tools are close, but every price and interval must be checked.
+
 ### `woocommerce-zapier`
+
 - **Description:** Zapier triggers/actions for Woo.
 - **Relevance:** Medium
-- **Transferability:** Full — Shopify Zapier.
-- **Evidence:** `wp-content/plugins/woocommerce-zapier`
+- **Transferability:** **Easy move:** Shopify Zapier.
+
 ### `woofunnels-order-bump`
+
 - **Description:** FunnelKit / WooFunnels order bumps.
 - **Relevance:** High
-- **Transferability:** Partial — checkout upsell apps.
-- **Evidence:** `wp-content/plugins/woofunnels-order-bump`
+- **Transferability:** **Expect some work:** checkout upsell apps.
+
 ### `wordpress-seo`
+
 - **Description:** Yoast SEO Free: meta, schema, sitemaps, redirects UI.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify SEO fields + redirects JSON.
-- **Evidence:** `wp-content/plugins/wordpress-seo`
+- **Transferability:** **Expect some work:** Shopify SEO fields + redirects JSON.
+
 ### `wordpress-seo-premium`
+
 - **Description:** Yoast Premium: redirects, internal linking, AI features.
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/wordpress-seo-premium`
+- **Transferability:** **Expect some work:**
+
 ### `wp-rocket`
+
 - **Description:** Caching and performance (HTML/CSS/JS optimization).
 - **Relevance:** Medium
-- **Transferability:** N/A — Shopify CDN/hosting; different model.
-- **Evidence:** `wp-content/plugins/wp-rocket`
+- **Transferability:** **Not part of Shopify:** Shopify CDN/hosting; different model.
+
 ### `wp-sitemap-page`
+
 - **Description:** HTML sitemap page shortcode/plugin.
 - **Relevance:** Low
-- **Transferability:** Partial — theme page.
-- **Evidence:** `wp-content/plugins/wp-sitemap-page`
+- **Transferability:** **Expect some work:** theme page.
+
 ### `wp-smush-pro`
+
 - **Description:** Image compression.
 - **Relevance:** Low
-- **Transferability:** N/A — Shopify image pipeline.
-- **Evidence:** `wp-content/plugins/wp-smush-pro`
+- **Transferability:** **Not part of Shopify:** Shopify image pipeline.
+
 ### `wpml-media-translation`
-- **Description:** WPML Media Translation for translated attachments.
+
+- **Description:** Lets each language version of the site use its own photos or PDFs when needed.
 - **Relevance:** Medium
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/wpml-media-translation`
-### `wpml-string-translation`
-- **Description:** WPML String Translation for UI strings and plugin strings.
-- **Relevance:** High
-- **Transferability:** Partial — theme locale files / Markets; no direct port.
-- **Evidence:** `wp-content/plugins/wpml-string-translation`
-### `wpmudev-updates`
-- **Description:** WPMU DEV update client.
-- **Relevance:** Low
-- **Transferability:** N/A
-- **Evidence:** `wp-content/plugins/wpmudev-updates`
+- **Transferability:** **Expect some work:**
+
 ### `wpseo-woocommerce`
+
 - **Description:** Yoast WooCommerce SEO extension.
 - **Relevance:** High
-- **Transferability:** Partial
-- **Evidence:** `wp-content/plugins/wpseo-woocommerce`
+- **Transferability:** **Expect some work:**
+
 ### `wunderkind-integration`
+
 - **Description:** Wunderkind (BounceX) behavioral marketing.
 - **Relevance:** Medium
-- **Transferability:** Partial — Wunderkind Shopify.
-- **Evidence:** `wp-content/plugins/wunderkind-integration`
-### `yith-woocommerce-gift-cards-premium`
-- **Description:** YITH gift cards premium.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify gift cards.
-- **Evidence:** `wp-content/plugins/yith-woocommerce-gift-cards-premium`
+- **Transferability:** **Expect some work:** Wunderkind Shopify.
+
 ### `yotpo-integration`
-- **Description:** Yotpo loyalty/reviews/SMS hooks; includes REST coupon routes.
+
+- **Description:** Yotpo handles loyalty points, product reviews, SMS messages, and can create or cancel coupon codes from its system.
 - **Relevance:** High
-- **Transferability:** Partial — Yotpo Shopify stack.
-- **Evidence:** `wp-content/plugins/yotpo-integration`
+- **Transferability:** **Expect some work:** Yotpo’s own Shopify apps reconnect most of this.
+
 
 ---
 
-_End of inventory. Re-run `python docs/generate-shopify-inventory.py` after plugin/theme changes._
+_This file is generated. Engineers can refresh it after plugins or the theme change by running `python docs/generate-shopify-inventory.py` from the WordPress project folder._

@@ -1,225 +1,41 @@
-## 10. `pfm-panel` REST API — individual routes (`pfm-panel/v1`)
+## 10. Internal tools your team uses inside WordPress (`pfm-panel`)
 
-Each route is an internal operations capability to map to **Shopify Admin API**, **custom app**, or **retired workflow**.
+Support and operations use a private staff control panel wired into WordPress. It is not a shopper-facing storefront; it centralizes order, subscription, and customer work that today happens outside Shopify Admin. After migration, the same jobs belong in **Shopify Admin**, **Shopify Flow**, partner **apps**, or a small custom internal tool—with staff authentication and permissions designed on purpose.
 
-### `GET|POST /wp-json/pfm-panel/v1/orders`
+### Orders: search, open, edit, and back-office actions
 
-- **Description:** Order collection or creation entrypoint (see `class-pfmp-rest-orders.php` for methods).
+- **Description:** Staff browse and search orders, open a single order, update fields, see previews, and run operational steps in one place—for example re-run address validation, push an order into the warehouse export path, retry failed payments, issue refunds (including refunds that post as store credit), resend transactional emails, inspect Braintree payment metadata, and resolve Narvar tracking links when that post-purchase experience is in use. Bulk operations and simple “create order” flows live here, along with lightweight helpers such as “newest order” checks for older dashboards and internal order notes for handoffs between teams.
 - **Relevance:** High
-- **Transferability:** Not transferable — Admin API `orders.json` + app auth.
+- **Transferability:** **Needs a fresh build** for anything that assumes WooCommerce order records and custom integrations; map each behavior to Shopify Admin, fulfillment apps, and the Admin API.
 
-### `GET|PUT|PATCH /wp-json/pfm-panel/v1/orders/{id}`
+### Subscriptions: list, change, pause or cancel, and notes
 
-- **Description:** Single order read/update.
+- **Description:** Staff list subscriptions, open one, adjust line items or schedules where policy allows, run lifecycle actions such as pause or cancel, see which catalog items are offered on subscription, pull subscriptions for a given customer, and attach internal notes on the contract.
 - **Relevance:** High
-- **Transferability:** Not transferable — Admin API orders.
+- **Transferability:** **Expect some work** — Shopify’s subscription model differs; plan with your subscription app and contract APIs rather than expecting a one-to-one copy of this screen.
 
-### `GET /wp-json/pfm-panel/v1/orders/by-user/{user_id}`
+### Customers: search, profiles, support views, credits, and loyalty
 
-- **Description:** Orders for a given WP user id.
+- **Description:** Staff search for customers, open profiles for read and update, and sometimes work in a “support as customer” mode for troubleshooting. The panel ties into Yotpo loyalty for point adjustments and into Woo store credit ledgers with the ability to post adjustments—finance and support use these for refunds-as-credit and goodwill gestures.
 - **Relevance:** High
-- **Transferability:** Partial — Shopify customer order lookup.
+- **Transferability:** **Expect some work** — customer identity, staff impersonation rules, credits, and loyalty spread across Shopify Admin and partner apps on the new stack.
 
-### `POST /wp-json/pfm-panel/v1/orders/{order_id}/revalidate-address`
+### Replacement orders (exchanges and reships)
 
-- **Description:** Re-run address validation for an order.
+- **Description:** A parallel workflow mirrors much of the order toolkit for replacements—creating and tracking replacement orders, notes, edits, warehouse export, address revalidation, carrier links, and email touches. Lookups describe why a replacement was opened and which staff roles typically create them.
 - **Relevance:** High
-- **Transferability:** Partial — address validation app + order edit.
+- **Transferability:** **Expect some work** — rebuild with an exchange or replacement app, Shopify-native returns, or a focused custom flow depending on policy.
 
-### `POST /wp-json/pfm-panel/v1/orders/{order_id}/export-to-warehouse`
+### Coupons, catalog pickers, and internal reporting
 
-- **Description:** Push order to warehouse / WMS export pipeline.
-- **Relevance:** High
-- **Transferability:** Partial — fulfillment webhooks.
+- **Description:** Coupon search and category metadata help campaigns and support apply the right incentives. Product pickers power internal screens that need “what is in this category” lists. Staff can run ad hoc reports and file-based export pipelines, upload inputs where an integration expects them, and review history of those jobs; separate summaries chart order volume over time for operations reviews.
+- **Relevance:** Medium to High (depends how much ops still rely on bespoke in-panel reporting versus BI tools)
+- **Transferability:** **Expect some work** for discounts and catalog surfacing (Shopify discount and product APIs); treat reporting that only lives here as **needs a fresh build** against Shopify data exports or analytics tools.
 
-### `POST /wp-json/pfm-panel/v1/orders/bulk`
+### Audit trail for staff actions
 
-- **Description:** Bulk order operations.
-- **Relevance:** High
-- **Transferability:** Partial — Bulk Admin API / background jobs.
-
-### `POST /wp-json/pfm-panel/v1/orders/{id}/edit`
-
-- **Description:** Edit order fields from internal panel.
-- **Relevance:** High
-- **Transferability:** Partial — order edits in Shopify admin / app.
-
-### `GET /wp-json/pfm-panel/v1/products-by-category`
-
-- **Description:** Product picker data for internal tools.
+- **Description:** Records which staff accounts performed sensitive actions—useful for internal quality control and answering “who changed this?” without digging through raw logs.
 - **Relevance:** Medium
-- **Transferability:** Partial — Admin API products query.
+- **Transferability:** **Expect some work** — combine Shopify staff activity where it applies with app event logs or compliance tooling you standardize on.
 
-### `GET|POST /wp-json/pfm-panel/v1/orders/{order_id}/notes`
-
-- **Description:** Order notes CRUD for ops.
-- **Relevance:** Medium
-- **Transferability:** Full — order notes exist on Shopify.
-
-### `GET /wp-json/pfm-panel/v1/customers/search`
-
-- **Description:** Search customers for support panel.
-- **Relevance:** High
-- **Transferability:** Partial — Admin API customer search.
-
-### `GET /wp-json/pfm-panel/v1/orders/latest-id`
-
-- **Description:** Polling helper for newest order id.
-- **Relevance:** Medium
-- **Transferability:** Not transferable — replace with webhooks.
-
-### `GET /wp-json/pfm-panel/v1/orders/braintree-info`
-
-- **Description:** Braintree payment metadata for an order.
-- **Relevance:** High
-- **Transferability:** Partial — payment app + order transactions.
-
-### `GET /wp-json/pfm-panel/v1/orders/{order_id}/preview`
-
-- **Description:** Order preview (HTML/PDF context — confirm in code).
-- **Relevance:** Medium
-- **Transferability:** Partial.
-
-### `GET /wp-json/pfm-panel/v1/orders/{order_id}/narvar-tracking-url`
-
-- **Description:** Resolve Narvar tracking link for order.
-- **Relevance:** High
-- **Transferability:** Partial — Narvar on Shopify.
-
-### `POST /wp-json/pfm-panel/v1/orders/{id}/resend-email`
-
-- **Description:** Resend transactional email for order.
-- **Relevance:** Medium
-- **Transferability:** Partial — notification APIs.
-
-### `GET /wp-json/pfm-panel/v1/orders/status-counts`
-
-- **Description:** Dashboard counts by order status.
-- **Relevance:** Medium
-- **Transferability:** Partial — GraphQL/Admin API aggregates.
-
-### `GET|POST /wp-json/pfm-panel/v1/subscriptions`
-
-- **Description:** Subscription list/create surface.
-- **Relevance:** High
-- **Transferability:** Partial — Shopify Subscriptions contract APIs.
-
-### `GET|PUT|PATCH /wp-json/pfm-panel/v1/subscriptions/{id}`
-
-- **Description:** Single subscription read/update.
-- **Relevance:** High
-- **Transferability:** Partial.
-
-### `GET /wp-json/pfm-panel/v1/subscriptions/products`
-
-- **Description:** Subscribable products listing for panel.
-- **Relevance:** High
-- **Transferability:** Partial — selling plans on products.
-
-### `POST /wp-json/pfm-panel/v1/subscriptions/{id}/edit`
-
-- **Description:** Subscription line / schedule edits.
-- **Relevance:** High
-- **Transferability:** Partial.
-
-### `POST /wp-json/pfm-panel/v1/subscriptions/{id}/actions`
-
-- **Description:** Subscription actions (pause, cancel, etc. — confirm in code).
-- **Relevance:** High
-- **Transferability:** Partial.
-
-### `GET /wp-json/pfm-panel/v1/subscriptions/by-user/{id}`
-
-- **Description:** Subscriptions for customer.
-- **Relevance:** High
-- **Transferability:** Partial.
-
-### `GET|POST /wp-json/pfm-panel/v1/subscriptions/{subscription_id}/notes`
-
-- **Description:** Subscription notes for ops.
-- **Relevance:** Medium
-- **Transferability:** Partial.
-
-### `POST /wp-json/pfm-panel/v1/orders/{order_id}/retry-payment`
-
-- **Description:** Retry failed renewal or order payment.
-- **Relevance:** High
-- **Transferability:** Partial — dunning in subscription app.
-
-### `POST /wp-json/pfm-panel/v1/orders/{id}/refund`
-
-- **Description:** Issue refund from panel.
-- **Relevance:** High
-- **Transferability:** Partial — Refund Admin API.
-
-### `POST /wp-json/pfm-panel/v1/orders/{id}/refund-via-credits`
-
-- **Description:** Refund path applying store credits.
-- **Relevance:** High
-- **Transferability:** Partial — gift card / credit patterns on Shopify.
-
-### `GET|POST /wp-json/pfm-panel/v1/customers`
-
-- **Description:** Customer list/create for internal tools.
-- **Relevance:** High
-- **Transferability:** Partial — Admin API customers.
-
-### `GET|PUT /wp-json/pfm-panel/v1/customers/{id}`
-
-- **Description:** Customer detail/update.
-- **Relevance:** High
-- **Transferability:** Partial.
-
-### `POST /wp-json/pfm-panel/v1/customers/{id}/assume_user`
-
-- **Description:** Support impersonation / switch-to-customer session helper.
-- **Relevance:** Medium
-- **Transferability:** Partial — Shopify staff + customer merge policies.
-
-### `GET|POST /wp-json/pfm-panel/v1/customers/{id}/yotpo` and `/yotpo-adjust`
-
-- **Description:** Yotpo points or loyalty adjustments from panel.
-- **Relevance:** Medium
-- **Transferability:** Partial — Yotpo Shopify APIs.
-
-### `GET|POST /wp-json/pfm-panel/v1/customers/{id}/store-credits` and `/store-credits-adjust`
-
-- **Description:** View/adjust Woo store credit balance from panel.
-- **Relevance:** High
-- **Transferability:** Partial — Shopify store credit / gift cards.
-
-### `GET|POST /wp-json/pfm-panel/v1/replacements` (collection + nested)
-
-- **Description:** Replacement order workflow mirroring orders (list, get, notes, edit, export, revalidate, Narvar, resend).
-- **Relevance:** High
-- **Transferability:** Partial — exchanges/replacement apps or custom flows.
-
-### `GET /wp-json/pfm-panel/v1/replacements/reasons` and `/creators`
-
-- **Description:** Metadata for replacement reasons and creating agents.
-- **Relevance:** Medium
-- **Transferability:** Partial — metaobjects or app config.
-
-### `GET|POST /wp-json/pfm-panel/v1/admin-actions` (+ `/action-types`, `/admins`, `/resource-types`)
-
-- **Description:** Audit log / admin action tracking for internal compliance.
-- **Relevance:** Medium
-- **Transferability:** Partial — app event log.
-
-### `POST /wp-json/pfm-panel/v1/reports/run` (+ `/upload`, `/history`)
-
-- **Description:** Run or upload custom CSV/report pipelines from panel.
-- **Relevance:** High
-- **Transferability:** Not transferable — rebuild reporting against Shopify data export.
-
-### `GET /wp-json/pfm-panel/v1/coupons` and `/coupons/categories`
-
-- **Description:** Coupon search and category metadata for ops.
-- **Relevance:** High
-- **Transferability:** Partial — Discount Admin API.
-
-### `GET /wp-json/pfm-panel/v1/stats/orders` and `/stats/orders/timeseries`
-
-- **Description:** Internal analytics for order volume.
-- **Relevance:** Medium
-- **Transferability:** Partial — ShopifyQL / analytics apps.
+_Implementation note for engineers: these capabilities are implemented as WordPress REST routes registered for the `pfm-panel` integration; migration planning should inventory live callers in code and monitoring, not recreate every route name in stakeholder documents._
