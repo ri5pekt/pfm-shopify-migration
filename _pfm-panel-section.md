@@ -17,7 +17,7 @@
 
 ### Customers: search, profiles, support views, credits, and loyalty
 
-- **Description:** Staff search for customers, open profiles for read and update, and sometimes work in a “support as customer” mode for troubleshooting. The panel ties into Yotpo loyalty for point adjustments and into Woo store credit ledgers with the ability to post adjustments—finance and support use these for refunds-as-credit and goodwill gestures.
+- **Description:** Staff search for customers, open profiles for read and update, and sometimes work in a “support as customer” mode for troubleshooting. The panel ties into the **loyalty program** for point adjustments and into **store credit** ledgers with the ability to post adjustments—finance and support use these for refunds-as-credit and goodwill gestures.
 - **Relevance:** High
 - **Transferability:** **Expect some work** — customer identity, staff impersonation rules, credits, and loyalty spread across Shopify Admin and partner apps on the new stack.
 

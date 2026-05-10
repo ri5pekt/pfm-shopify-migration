@@ -1,798 +1,331 @@
 #!/usr/bin/env python3
-"""Emit docs/shopify-migration-features-inventory.md (exhaustive plugin + theme inventory)."""
+"""Emit docs/shopify-migration-features-inventory.md (theme summaries + capability rows, no plugin folder list)."""
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PLUGINS = ROOT / "wp-content" / "plugins"
 THEME = ROOT / "wp-content" / "themes" / "particleformen"
 
-# Folders under wp-content/plugins/ omitted from §11 (still on disk, not inventoried as product rows).
-EXCLUDED_PLUGIN_SLUGS: frozenset[str] = frozenset(
-    {
-        "yith-woocommerce-gift-cards-premium",  # not used; Smart Coupons / Shopify gift cards cover the need
-        "wpmudev-updates",  # WPMU DEV license updater client only
-        "wpml-string-translation",  # explained as a workflow in §0 — avoids duplicating WPML under a second package name
-    }
-)
 
-# Overrides: slug -> (description, relevance, transferability)
-CUSTOM: dict[str, tuple[str, str, str]] = {
-    "sitepress-multilingual-cms": (
-        "Runs the store’s multiple languages—translated pages, menus, and the correct links for Google in each country.",
-        "High",
-        "**Expect some work:** Shopify Markets plus translation tools replace most of this, but bookmarks and URLs need a careful plan.",
-    ),
-    "woocommerce-multilingual": (
-        "Pairs languages with the right currency and exchange rates so visitors see familiar money symbols.",
-        "High",
-        "**Expect some work:** Shopify Markets covers the same idea with different settings; any special rules must be re‑entered.",
-    ),
-    "wpml-media-translation": (
-        "Lets each language version of the site use its own photos or PDFs when needed.",
-        "Medium",
-        "**Expect some work:**",
-    ),
-    "woocommerce-subscriptions": (
-        "Powers subscribe‑and‑save: renewals, failed payment retries, and customer self‑service for delivery schedules.",
-        "High",
-        "**Expect some work:** Shopify’s subscription tools are close, but every price and interval must be checked.",
-    ),
-    "woocommerce-subscription": (
-        "Companion tools that sit next to the main subscription engine—confirm with the web team whether both are active.",
-        "High",
-        "**Expect some work:**",
-    ),
-    "subscriptions-utils": (
-        "Particle‑specific helpers that tweak how subscriptions behave behind the scenes.",
-        "High",
-        "**Needs a fresh build:** replan each behavior inside Shopify Flow, a subscription partner, or a small custom service.",
-    ),
-    "pfm-panel": (
-        "The internal “mission control” staff use to search orders, resend emails, push refunds, adjust store credit, export to the warehouse, and similar day‑to‑day jobs.",
-        "High",
-        "**Needs a fresh build:** Shopify Admin plus Flow/partner apps—or a lightweight custom dashboard—replace this over time.",
-    ),
-    "particleformen-checkout": (
-        "Particle‑specific checkout tweaks layered on top of WooCommerce (together with the theme checkout code).",
-        "High",
-        "**Expect some work:** Shopify Checkout allows apps and small UI extensions instead of the old PHP approach.",
-    ),
-    "all-upsells": (
-        "Upsell flows: thank-you page, post-purchase, BAS/PPU modules (see `includes/`).",
-        "High",
-        "**Expect some work:** post-purchase apps, checkout upsell extensions.",
-    ),
-    "custom-coupon": (
-        "Custom coupon logic beyond core Woo coupons.",
-        "High",
-        "**Expect some work:** Shopify Discount Functions / discount apps.",
-    ),
-    "pfm-store-credits": (
-        "Store credit balance and checkout application (frontend + admin).",
-        "High",
-        "**Expect some work:** Shopify store credit / gift card primitives differ; likely app or custom.",
-    ),
-    "pfm-monday-coupons": (
-        "REST-driven coupon integration (Monday workflow).",
-        "Medium",
-        "**Expect some work:** Zapier/Flow + discount APIs.",
-    ),
-    "woo-discount-rules": (
-        "Discount Rules for WooCommerce (conditional cart rules).",
-        "High",
-        "**Expect some work:** Shopify Functions + discount apps.",
-    ),
-    "woo-discount-rules-pro": (
-        "Pro tier for Discount Rules (extra rule types).",
-        "High",
-        "**Expect some work:**",
-    ),
-    "woocommerce-smart-coupons": (
-        "Smart Coupons: store credit, gift certificates, bulk coupons, blocks.",
-        "High",
-        "**Expect some work:** Shopify gift cards / discount combinations via apps.",
-    ),
-    "cart-sidebar": (
-        "Slide-out cart UI; integrates WPML/WCML currency and product ID mapping.",
-        "High",
-        "**Expect some work:** cart drawer theme + AJAX cart APIs on Shopify.",
-    ),
-    "cart-sidebar-v2": (
-        "Alternate cart sidebar implementation — confirm which is primary in production.",
-        "Medium",
-        "**Expect some work:**",
-    ),
-    "pfm-signifyd-integration": (
-        "Signifyd fraud scoring / order submission.",
-        "High",
-        "**Expect some work:** Signifyd Shopify app or custom integration.",
-    ),
-    "kount-fraud-prevention": (
-        "Kount fraud screening on checkout.",
-        "High",
-        "**Expect some work:** Kount for Shopify or equivalent.",
-    ),
-    "fermiac-siftscience-for-woocommerce": (
-        "Sift Science integration for Woo.",
-        "High",
-        "**Expect some work:** Shopify Fraud / third-party.",
-    ),
-    "woocommerce-siftscience-extensions": (
-        "Extensions for Sift + Woo.",
-        "Medium",
-        "**Expect some work:**",
-    ),
-    "sift-wp": (
-        "Sift-related WordPress glue.",
-        "Medium",
-        "**Expect some work:**",
-    ),
-    "pfm-checkout-observer": (
-        "Observes checkout events (logging / risk / analytics — confirm).",
-        "High",
-        "**Expect some work:** webhooks + Flow.",
-    ),
-    "pfm-checkout-bot-block": (
-        "Bot blocking on checkout.",
-        "Medium",
-        "**Expect some work:** Shopify bot protection + CAPTCHA apps.",
-    ),
-    "orders-pay-verify": (
-        "Order pay verification flow.",
-        "Medium",
-        "**Expect some work:**",
-    ),
-    "bluesnap-payment-gateway-for-woocommerce": (
-        "BlueSnap payment gateway.",
-        "High",
-        "**Expect some work:** Shopify payment provider availability; may require different PSP.",
-    ),
-    "braintree-saved-token-gateway": (
-        "Braintree vaulted cards / gateway.",
-        "High",
-        "**Expect some work:** Shopify Payments vs Braintree; token migration project.",
-    ),
-    "woo-payment-gateway": (
-        "Payment gateway package (often card UI / blocks).",
-        "High",
-        "**Expect some work:**",
-    ),
-    "afterpay-gateway-for-woocommerce": (
-        "Afterpay / Clearpay BNPL.",
-        "Medium",
-        "**Expect some work:** Shop Pay Installments / Afterpay Shopify.",
-    ),
-    "woocommerce-gateway-paypal-express-checkout": (
-        "PayPal Express checkout.",
-        "High",
-        "**Easy move:** PayPal on Shopify.",
-    ),
-    "card-checkout-ms": (
-        "Checkout card UI / testimonial carousel (custom).",
-        "Medium",
-        "**Expect some work:** theme + checkout extensions.",
-    ),
-    "package_protection_ms": (
-        "Package protection upsell on checkout.",
-        "Medium",
-        "**Expect some work:** shipping protection apps.",
-    ),
-    "recaptcha-for-woocommerce": (
-        "reCAPTCHA on Woo checkout/account.",
-        "Medium",
-        "**Expect some work:** Shopify bot challenge / apps.",
-    ),
-    "shipbob-integration": (
-        "ShipBob fulfillment integration.",
-        "High",
-        "**Expect some work:** ShipBob Shopify connector or order webhook app.",
-    ),
-    "warehouse-export": (
-        "Warehouse export + REST webhooks (ShipBob, Green warehouse classes).",
-        "High",
-        "**Expect some work:** OMS integration via Shopify webhooks + custom middleware.",
-    ),
-    "woocommerce-shipstation-integration": (
-        "WooCommerce ShipStation plugin folder exists in the repo; **Particle does not use ShipStation** operationally—no migration to Shopify ShipStation. Deactivate/uninstall with WordPress.",
-        "Low",
-        "**Not part of Shopify:** not in scope; remove dead plugin during decommission.",
-    ),
-    "woocommerce-shipment-tracking": (
-        "Woo shipment tracking meta on orders.",
-        "High",
-        "**Expect some work:** native tracking + carrier apps.",
-    ),
-    "narvar-tracking-integration": (
-        "Narvar post-purchase tracking / comms.",
-        "High",
-        "**Expect some work:** Narvar Shopify integration.",
-    ),
-    "aftership-woocommerce-tracking": (
-        "AfterShip tracking.",
-        "Medium",
-        "**Expect some work:** AfterShip app.",
-    ),
-    "woocommerce-services": (
-        "WooCommerce Shipping / tax (USPS etc. depending on config).",
-        "Medium",
-        "**Expect some work:** Shopify Shipping.",
-    ),
-    "special-shipping-methods": (
-        "Custom shipping methods / rules.",
-        "High",
-        "**Expect some work:** carrier service + Functions or shipping apps.",
-    ),
-    "PriorityAPI": (
-        "Priority ERP API integration.",
-        "High",
-        "**Expect some work:** middleware posting Shopify orders to Priority.",
-    ),
-    "WooCommercePriorityAPI": (
-        "Alternate or layered Priority Woo bridge — confirm active.",
-        "High",
-        "**Expect some work:**",
-    ),
-    "PriorityApiCustomCode": (
-        "Custom code layer on Priority API.",
-        "High",
-        "**Needs a fresh build:** port to middleware.",
-    ),
-    "post-orders-to-priority": (
-        "Pushes orders to Priority system.",
-        "High",
-        "**Expect some work:**",
-    ),
-    "klaviyo": (
-        "Klaviyo official Woo plugin: events, lists, forms.",
-        "High",
-        "**Easy move:** Klaviyo Shopify integration.",
-    ),
-    "klaviyo-wp": (
-        "Additional Klaviyo WordPress integration package.",
-        "High",
-        "Full",
-    ),
-    "richpanel-for-woocommerce": (
-        "Richpanel helpdesk + customer timeline for Woo orders.",
-        "High",
-        "**Expect some work:** Richpanel Shopify app.",
-    ),
-    "yotpo-integration": (
-        "Yotpo handles loyalty points, product reviews, SMS messages, and can create or cancel coupon codes from its system.",
-        "High",
-        "**Expect some work:** Yotpo’s own Shopify apps reconnect most of this.",
-    ),
-    "stampedio": (
-        "Stamped.io reviews widgets / integration.",
-        "High",
-        "**Expect some work:** Stamped Shopify.",
-    ),
-    "stampedio-product-reviews": (
-        "Stamped product reviews companion.",
-        "High",
-        "**Expect some work:**",
-    ),
-    "trustpilot-widget": (
-        "Trustpilot widget embed.",
-        "Medium",
-        "**Easy move:** Trustpilot Shopify app/widget.",
-    ),
-    "trustpilot-integration": (
-        "Trustpilot integration glue.",
-        "Medium",
-        "Full",
-    ),
-    "ticket-submissions": (
-        "Support ticket submission from site.",
-        "Medium",
-        "**Expect some work:** forms app / Zendesk / Gorgias.",
-    ),
-    "duracelltomi-google-tag-manager": (
-        "GTM container injection and dataLayer.",
-        "High",
-        "**Easy move:** GTM in theme or Shopify app.",
-    ),
-    "pixelyoursite-pro": (
-        "PixelYourSite: Meta/CAPI/GA events.",
-        "High",
-        "**Expect some work:** PYS Shopify or server events.",
-    ),
-    "pixelyoursite-super-pack": (
-        "PYS add-on pack.",
-        "Medium",
-        "**Expect some work:**",
-    ),
-    "blotout-edgetag": (
-        "Blotout EdgeTag / customer data platform.",
-        "Medium",
-        "**Expect some work:** Shopify Customer Privacy + server pixels.",
-    ),
-    "impact-partnership-cloud": (
-        "Impact affiliate / partnership tracking.",
-        "Medium",
-        "**Expect some work:** Impact Shopify integration.",
-    ),
-    "tiktok-shop-integration": (
-        "TikTok Shop / catalog sync.",
-        "Medium",
-        "**Expect some work:** TikTok for Shopify.",
-    ),
-    "facebook-store-integration": (
-        "Facebook / Meta catalog integration.",
-        "Medium",
-        "**Expect some work:** Meta sales channel.",
-    ),
-    "wunderkind-integration": (
-        "Wunderkind (BounceX) behavioral marketing.",
-        "Medium",
-        "**Expect some work:** Wunderkind Shopify.",
-    ),
-    "optinmonster": (
-        "OptinMonster lead capture.",
-        "Medium",
-        "**Expect some work:** OM Shopify embed.",
-    ),
-    "woocommerce": (
-        "WooCommerce core (cart, checkout, products, orders). Entire commerce layer to be replaced by Shopify.",
-        "High",
-        "**Needs a fresh build:** platform replacement.",
-    ),
-    "wordpress-seo": (
-        "Yoast SEO Free: meta, schema, sitemaps, redirects UI.",
-        "High",
-        "**Expect some work:** Shopify SEO fields + redirects JSON.",
-    ),
-    "wordpress-seo-premium": (
-        "Yoast Premium: redirects, internal linking, AI features.",
-        "High",
-        "**Expect some work:**",
-    ),
-    "wpseo-woocommerce": (
-        "Yoast WooCommerce SEO extension.",
-        "High",
-        "**Expect some work:**",
-    ),
-    "redirection": (
-        "301/302 redirect manager and logs.",
-        "High",
-        "**Expect some work:** Shopify URL redirects (import).",
-    ),
-    "sitemap-custom": (
-        "Custom sitemap generation for Particle.",
-        "Medium",
-        "**Expect some work:** Shopify sitemap + hreflang via Markets.",
-    ),
-    "wp-sitemap-page": (
-        "HTML sitemap page shortcode/plugin.",
-        "Low",
-        "**Expect some work:** theme page.",
-    ),
-    "advanced-custom-fields-pro": (
-        "ACF Pro fields on pages/products/options.",
-        "High",
-        "**Expect some work:** metafields + metaobject definitions + admin UI.",
-    ),
-    "landing-pages": (
-        "Landing page plugin with blocks and templates (e.g. Marsmen-like LP).",
-        "High",
-        "**Expect some work:** Shopify Pages + metaobjects + theme sections.",
-    ),
-    "gravite-landing-pages": (
-        "Gravité-specific landing page templates.",
-        "High",
-        "**Expect some work:**",
-    ),
-    "japan-landing-pages": (
-        "Japan market landing pages.",
-        "Medium",
-        "**Expect some work:** Markets + templates.",
-    ),
-    "product-landing-pages": (
-        "Product-scoped landing experiences.",
-        "High",
-        "**Expect some work:**",
-    ),
-    "woocommerce-magazine": (
-        "Magazine / editorial integration with Woo (see plugin).",
-        "Medium",
-        "**Expect some work:** Shopify blog Online Store.",
-    ),
-    "woocommerce-cart-page": (
-        "Custom cart page behavior/routing.",
-        "High",
-        "**Expect some work:** Shopify cart template + apps.",
-    ),
-    "woocommerce-my-account": (
-        "Custom My Account SPA/loader and flows.",
-        "High",
-        "**Expect some work:** Customer Account API / legacy customer accounts strategy.",
-    ),
-    "woocommerce-checkout-userdata": (
-        "Extra checkout user data capture.",
-        "Medium",
-        "**Expect some work:** checkout UI extensions + metafields.",
-    ),
-    "woocommerce-replacement-orders": (
-        "Replacement order workflow tied to Woo orders.",
-        "High",
-        "**Expect some work:** draft orders / exchanges apps / custom.",
-    ),
-    "woocommerce-reminder-pro": (
-        "Abandoned cart or reminder emails.",
-        "Medium",
-        "**Expect some work:** Klaviyo + Shopify checkout abandonment.",
-    ),
-    "woocommerce-quiz": (
-        "Quiz tied to Woo products.",
-        "Medium",
-        "**Expect some work:** third-party quiz app or custom theme.",
-    ),
-    "pfm-skincare-quiz": (
-        "Particle skincare quiz templates and flow.",
-        "High",
-        "**Expect some work:** rebuild as theme section or app.",
-    ),
-    "quiz": (
-        "Generic quiz plugin for Particle.",
-        "Medium",
-        "**Expect some work:**",
-    ),
-    "product-guide": (
-        "Product guide experience.",
-        "Medium",
-        "**Expect some work:** content pages + metafields.",
-    ),
-    "preorder-products": (
-        "Preorder selling for products.",
-        "Medium",
-        "**Expect some work:** preorder apps.",
-    ),
-    "try-before-you-buy": (
-        "Try before you buy program.",
-        "Medium",
-        "**Expect some work:** TBYB apps.",
-    ),
-    "force-default-variant-for-woocommerce": (
-        "Forces default variation selection when variations exist.",
-        "Low",
-        "**Expect some work:** rarely needed if SKUs are simple; confirm use.",
-    ),
-    "woofunnels-order-bump": (
-        "FunnelKit / WooFunnels order bumps.",
-        "High",
-        "**Expect some work:** checkout upsell apps.",
-    ),
-    "post-purchase-upsell": (
-        "Post-purchase one-click upsell.",
-        "High",
-        "**Expect some work:** post-purchase apps.",
-    ),
-    "empty-cart-upsells": (
-        "Upsells when cart empty.",
-        "Medium",
-        "**Expect some work:**",
-    ),
-    "add_upsells_option_ms": (
-        "Adds upsell options to subscription/cart flows (custom).",
-        "High",
-        "**Expect some work:**",
-    ),
-    "woocommerce-complyt-tax": (
-        "Complyt tax calculation.",
-        "High",
-        "**Expect some work:** Shopify Tax / tax apps.",
-    ),
-    "complyt-address-validator": (
-        "Complyt address validation.",
-        "High",
-        "**Expect some work:** address validation at checkout.",
-    ),
-    "woocommerce-avatax": (
-        "Avalara AvaTax for Woo.",
-        "Medium",
-        "**Expect some work:** Avalara Shopify.",
-    ),
-    "tax-helper": (
-        "Tax helper utilities for Woo.",
-        "Medium",
-        "**Expect some work:**",
-    ),
-    "woocommerce-google-address": (
-        "Google Places autocomplete on address fields.",
-        "High",
-        "**Expect some work:** Shopify address autocomplete / apps.",
-    ),
-    "pfm-smarty-address-validator": (
-        "Smarty (USPS) address validation.",
-        "High",
-        "**Expect some work:** Smarty or equivalent on Shopify.",
-    ),
-    "woocommerce-coupons-utils": (
-        "Utilities for coupon management/reporting.",
-        "Medium",
-        "**Expect some work:**",
-    ),
-    "woocommerce-legacy-rest-api": (
-        "Legacy Woo REST API compatibility.",
-        "Low",
-        "**Not part of Shopify:** any consumers must move to Shopify Admin API.",
-    ),
-    "woocommerce-zapier": (
-        "Zapier triggers/actions for Woo.",
-        "Medium",
-        "**Easy move:** Shopify Zapier.",
-    ),
-    "outersignal-order-export": (
-        "Order export to Outersignal.",
-        "Medium",
-        "**Expect some work:** webhooks.",
-    ),
-    "sellence-api": (
-        "Sellence REST API (`/products`, `/coupons`).",
-        "Medium",
-        "**Expect some work:** custom app on Shopify.",
-    ),
-    "walmart-marketplace-integration": (
-        "Walmart marketplace listing / orders.",
-        "Medium",
-        "**Expect some work:** Walmart Shopify channel.",
-    ),
-    "pfm-geo-privacy": (
-        "Geo / privacy gate (REST namespace).",
-        "High",
-        "**Expect some work:** Markets + consent apps.",
-    ),
-    "pfm-klaviyo-monitor": (
-        "Monitoring / hooks for Klaviyo health.",
-        "Low",
-        "**Not part of Shopify:** ops tooling; replace with monitoring on new stack.",
-    ),
-    "pfm-chargebacks-utils": (
-        "Chargeback utilities + REST.",
-        "Medium",
-        "**Expect some work:** payment processor dashboards.",
-    ),
-    "pfm-csv-uploader": (
-        "Admin CSV upload utilities.",
-        "Medium",
-        "**Not part of Shopify:** Shopify bulk import / Admin API.",
-    ),
-    "pfm-tools-utils": (
-        "Misc internal tools + REST routes.",
-        "Medium",
-        "**Needs a fresh build:** review with engineering before promising dates.",
-    ),
-    "pfm-holiday-season": (
-        "Seasonal promos / toggles.",
-        "Medium",
-        "**Expect some work:** Shopify scheduled discounts.",
-    ),
-    "pfm-kill-injected-ui": (
-        "Hides stray admin or storefront UI injected by other tools.",
-        "Low",
-        "**Not part of Shopify:** WordPress-only housekeeping.",
-    ),
-    "wc-admin-product-note": (
-        "Product notes in admin for ops.",
-        "Low",
-        "**Expect some work:** Shopify order/product notes pattern.",
-    ),
-    "wc-remove-oldest-orders": (
-        "Housekeeping: remove old orders from DB.",
-        "Low",
-        "**Not part of Shopify:** WP-only maintenance.",
-    ),
-    "export-refunds-to-csv": (
-        "Export refunds to CSV.",
-        "Low",
-        "**Expect some work:** reporting export from Shopify.",
-    ),
-    "export-stats": (
-        "Export stats to Google Sheets.",
-        "Medium",
-        "**Expect some work:** Analytics API / Sheets.",
-    ),
-    "orderswidget-summary": (
-        "Small internal API that shows order summaries inside WordPress admin widgets.",
-        "Low",
-        "**Not part of Shopify:** rebuild in a staff dashboard or BI tool if still needed.",
-    ),
-    "purchase-push-notifications": (
-        "Push notifications on purchase.",
-        "Low",
-        "**Expect some work:** mobile app channel if applicable.",
-    ),
-    "livecart-by-wp-engine": (
-        "WP Engine LiveCart integration.",
-        "Low",
-        "**Not part of Shopify:** host-specific.",
-    ),
-    "wp-rocket": (
-        "Caching and performance (HTML/CSS/JS optimization).",
-        "Medium",
-        "**Not part of Shopify:** Shopify CDN/hosting; different model.",
-    ),
-    "webp-express": (
-        "WebP image conversion/delivery.",
-        "Low",
-        "**Expect some work:** Shopify image CDN handles formats.",
-    ),
-    "wp-smush-pro": (
-        "Image compression.",
-        "Low",
-        "**Not part of Shopify:** Shopify image pipeline.",
-    ),
-    "scheduled-actions": (
-        "Action Scheduler tables (often bundled with Woo).",
-        "Medium",
-        "**Not part of Shopify:** platform cron/queues differ.",
-    ),
-    "newrelic-transaction-renamer": (
-        "Renames New Relic transactions for WP.",
-        "Low",
-        "N/A",
-    ),
-    "log-http-requests": (
-        "Logs outbound HTTP for debugging.",
-        "Low",
-        "N/A",
-    ),
-    "inspect-http-requests": (
-        "Inspect HTTP requests in admin.",
-        "Low",
-        "N/A",
-    ),
-    "show-current-template": (
-        "Dev: shows current PHP template.",
-        "Low",
-        "N/A",
-    ),
-    "post-duplicator": (
-        "Duplicate posts/pages for editors.",
-        "Low",
-        "**Not part of Shopify:** editor workflow.",
-    ),
-    "post-smtp": (
-        "SMTP mailer for WP emails.",
-        "Medium",
-        "**Not part of Shopify:** Shopify email domain; transactional via apps.",
-    ),
-    "smtp-mailgun-connector": (
-        "Mailgun SMTP connector.",
-        "Low",
-        "N/A",
-    ),
-    "advanced-cron-manager": (
-        "Cron UI for WP.",
-        "Low",
-        "**Not part of Shopify:** Shopify scheduled jobs via apps.",
-    ),
-    "login-visit-counter": (
-        "Tracks login visits.",
-        "Low",
-        "N/A",
-    ),
-    "alert-system": (
-        "Internal alerts.",
-        "Medium",
-        "**Expect some work:** Slack/email from Flow.",
-    ),
-    "sticky-cta": (
-        "Sticky CTA bar.",
-        "Medium",
-        "**Expect some work:** theme.",
-    ),
-    "account-page-recommended-products": (
-        "Recommended products on account page.",
-        "Medium",
-        "**Expect some work:** personalization app or theme.",
-    ),
-    "metorik-helper": (
-        "Metorik analytics helper for Woo.",
-        "Medium",
-        "**Expect some work:** Metorik Shopify.",
-    ),
-    "sky-wcs-no-periods": (
-        "Cleans subscription product titles (removes periods).",
-        "Low",
-        "**Expect some work:** naming in Shopify subscriptions.",
-    ),
-    "kadence-woocommerce-email-designer": (
-        "Kadence Woo email template designer.",
-        "Medium",
-        "**Expect some work:** Shopify Notifications customization.",
-    ),
-    "user-role-editor": (
-        "WP role/capability editor.",
-        "Low",
-        "**Not part of Shopify:** Shopify staff permissions.",
-    ),
-    "user-switching": (
-        "Switch user for support testing.",
-        "Low",
-        "**Not part of Shopify:** Shopify staff impersonation patterns differ.",
-    ),
-    "two-factor-authentication-premium": (
-        "2FA for WP admin/logins.",
-        "Medium",
-        "**Not part of Shopify:** Shopify org security; customer 2FA via apps if needed.",
-    ),
-    "metronet-profile-picture": (
-        "Profile pictures for users.",
-        "Low",
-        "**Expect some work:** customer account profile apps.",
-    ),
-    "tinymce-advanced": (
-        "Classic editor enhancements.",
-        "Low",
-        "N/A",
-    ),
-    "codepress-admin-columns": (
-        "Admin list column customization.",
-        "Low",
-        "N/A",
-    ),
-    "loco-translate": (
-        "Translate theme/plugin strings locally.",
-        "Medium",
-        "**Expect some work:** locale JSON / Markets.",
-    ),
-    "force-regenerate-thumbnails": (
-        "Regenerate attachment sizes.",
-        "Low",
-        "N/A",
-    ),
-    "myscripts": (
-        "Custom scripts plugin (site-specific).",
-        "Medium",
-        "**Needs a fresh build:** ask engineering what this small package actually does.",
-    ),
-    "myplugin": (
-        "Placeholder or small custom plugin — audit contents.",
-        "Low",
-        "**Needs a fresh build:** ask engineering what this small package actually does.",
-    ),
-}
+def emit_capability_inventory() -> str:
+    """Section 11: business capabilities — no WordPress package names."""
+    rows: list[tuple[str, str, str, str]] = [
+        (
+            "Core catalog, cart, checkout, and orders",
+            "Shoppers discover products, configure variants, use a cart, complete checkout, and receive confirmations; "
+            "staff rely on order records, statuses, and customer-visible order history.",
+            "High",
+            "**Needs a fresh build** — Shopify becomes the commerce system of record; every edge case must be re‑validated.",
+        ),
+        (
+            "Multilingual storefront and market-aware pricing",
+            "URLs, navigation, and product copy follow the shopper’s language; prices and settlement currency follow market rules.",
+            "High",
+            "**Expect some work** — Shopify Markets plus translation workflow; plan redirects and bookmarks.",
+        ),
+        (
+            "Locale-specific media when marketing differs by country",
+            "Some regions need different hero images, PDFs, or downloads than the default language—not only translated text.",
+            "Medium",
+            "**Expect some work** — metafields, metaobjects, or per‑market content in the theme.",
+        ),
+        (
+            "Search engine metadata, structured data, XML sitemaps, and hreflang",
+            "Pages expose correct titles/descriptions, rich results where appropriate, crawlable sitemaps, and language alternates for Google.",
+            "High",
+            "**Expect some work** — Shopify SEO fields, JSON‑LD apps or theme logic, sitemap + Markets hreflang strategy.",
+        ),
+        (
+            "Redirect management and legacy URL hygiene",
+            "301/302 rules and logs when campaigns end or paths change; avoids broken inbound links.",
+            "High",
+            "**Expect some work** — import redirects into Shopify; keep a governance process.",
+        ),
+        (
+            "Full‑page and asset performance (caching, compression, script bundling)",
+            "HTML and static assets are cached and minified so repeat visits feel fast on real devices.",
+            "Medium",
+            "**Not part of Shopify 1:1** — Shopify’s CDN and theme performance replace host‑specific caching; still needs tuning.",
+        ),
+        (
+            "Image weight and modern formats in the storefront",
+            "Images are resized, compressed, and served in efficient formats where browsers support them.",
+            "Low",
+            "**Easy move / expect some work** — Shopify’s image pipeline covers most needs; confirm art direction and breakpoints.",
+        ),
+        (
+            "Human-readable HTML sitemap for visitors",
+            "A browsable index of important pages for people (distinct from the machine XML sitemap).",
+            "Low",
+            "**Expect some work** — single theme page or lightweight app section.",
+        ),
+        (
+            "Subscribe & save and recurring billing",
+            "Customers enroll in schedules, renewals charge automatically, failed payments retry, and shoppers self‑serve changes where allowed.",
+            "High",
+            "**Expect some work** — Shopify subscription contracts plus your chosen subscription partner.",
+        ),
+        (
+            "Store credit, gift value, and coupon strategies beyond simple codes",
+            "Balances can be held on the customer, applied at checkout, combined with promotions, and sometimes issued from support workflows.",
+            "High",
+            "**Expect some work** — Shopify store credit / gift cards plus discount apps or Functions as needed.",
+        ),
+        (
+            "Complex cart discount rules (conditions, stacks, exclusions)",
+            "Discounts depend on cart composition, customer segments, channels, or time windows—not only a single promo code.",
+            "High",
+            "**Expect some work** — Shopify Discount Functions, Shopify Scripts successors, or discount apps.",
+        ),
+        (
+            "In‑funnel and post‑purchase upsells",
+            "Additional offers appear in the cart drawer, checkout path, or immediately after purchase to raise basket size.",
+            "High",
+            "**Expect some work** — checkout UI extensions and post‑purchase offer apps.",
+        ),
+        (
+            "Branded checkout with many payment options and vaulted cards",
+            "Checkout matches brand guidelines; shoppers may use cards on file, wallets, BNPL, or regional methods with a smooth UX.",
+            "High",
+            "**Expect some work** — Shopify Payments and enabled gateways; token migration where legally allowed.",
+        ),
+        (
+            "Third‑party fraud signals, manual review hooks, and dispute workflows",
+            "Orders are scored before capture; high‑risk flows are flagged; chargebacks produce finance‑friendly notes on the order.",
+            "High",
+            "**Expect some work** — Shopify Protect / fraud filters plus whichever third‑party fraud vendor you standardize on.",
+        ),
+        (
+            "Checkout abuse and bot mitigation",
+            "Automated checkout abuse is throttled with challenges or risk checks tuned for cosmetics/beauty traffic.",
+            "Medium",
+            "**Expect some work** — Shopify bot protection, Flow rules, or CAPTCHA/checkout apps.",
+        ),
+        (
+            "Tax determination and checkout address validation",
+            "Taxes follow the ship‑to jurisdiction; addresses are validated or corrected before fulfillment to cut carrier fees.",
+            "High",
+            "**Expect some work** — Shopify Tax plus carrier‑grade address validation apps.",
+        ),
+        (
+            "Warehouse and 3PL order lifecycle (export, ship, callback)",
+            "Orders are pushed to fulfillment partners; partners send ship, delay, or delivery signals back so statuses and emails stay accurate.",
+            "High",
+            "**Expect some work** — fulfillment apps and order webhooks; middleware only where ERP rules require it.",
+        ),
+        (
+            "Customer-facing shipment tracking and post‑purchase communications",
+            "After purchase, shoppers get tracking pages, proactive delay notices, and branded delivery experiences where configured.",
+            "High",
+            "**Expect some work** — post‑purchase tracking and delivery‑comms apps on Shopify plus transactional email design.",
+        ),
+        (
+            "ERP or finance system order posting",
+            "Accepted orders land in the corporate ERP for allocation, invoicing, or manufacturing—without manual re‑typing.",
+            "High",
+            "**Expect some work** — middleware or iPaaS posting Shopify orders into your ERP’s APIs.",
+        ),
+        (
+            "Email and SMS automation tied to storefront behavior",
+            "Browse, cart, checkout, and post‑purchase events drive segments, flows, and consent-aware messaging.",
+            "High",
+            "**Easy move / expect some work** — connect your ESP to Shopify; re‑wire events and consent carefully.",
+        ),
+        (
+            "Pop‑ups, banners, and gated lead capture",
+            "Campaigns show targeted overlays or forms based on URL, segment, or behavior; leads sync to marketing lists.",
+            "Medium",
+            "**Expect some work** — embedded capture tools or Shopify‑native forms plus segmentation.",
+        ),
+        (
+            "Behavioral onsite personalization and triggered campaigns",
+            "Browse patterns change which creatives, reminders, or incentives a returning visitor sees across sessions.",
+            "Medium",
+            "**Expect some work** — personalization vendors with Shopify connectors plus first‑party data hygiene.",
+        ),
+        (
+            "Product reviews, ratings, and Q&A surfaces",
+            "PDPs and landing blocks show syndicated or first‑party reviews with moderation and schema where needed.",
+            "High",
+            "**Expect some work** — review platforms on Shopify with import/migration planning.",
+        ),
+        (
+            "Loyalty points, tiers, and promotion codes generated from loyalty events",
+            "Customers earn and burn points; the stack can mint or revoke discount codes when loyalty rules fire.",
+            "High",
+            "**Expect some work** — loyalty suite on Shopify; align coupon policies with finance.",
+        ),
+        (
+            "Embedded third‑party trust and syndicated review portals",
+            "Trustpilot or similar widgets appear where marketing wants social proof beyond native reviews.",
+            "Medium",
+            "**Easy move** — vendor’s Shopify snippet or theme embed.",
+        ),
+        (
+            "Affiliate and partnership attribution",
+            "Partner links and conversions are tracked for commission reporting without double‑counting paid channels.",
+            "Medium",
+            "**Expect some work** — affiliate/partner platforms with Shopify integration plus UTM governance.",
+        ),
+        (
+            "Social and ads catalog feeds (Meta, TikTok, etc.)",
+            "Product catalogs stay in sync with social commerce channels for ads and shoppable experiences.",
+            "Medium",
+            "**Expect some work** — Shopify sales channels and feed QA.",
+        ),
+        (
+            "Tag management and multi‑pixel measurement with server‑side options",
+            "GTM plus ad pixels (Meta, GA, etc.) fire consistently; server‑side or CAPI‑style events reduce loss from blockers.",
+            "High",
+            "**Expect some work** — Shopify Customer Privacy + partner pixels; validate revenue in QA.",
+        ),
+        (
+            "Helpdesk with full order timeline for agents",
+            "Support sees orders, tags, and key events beside tickets to answer “where is my order?” quickly.",
+            "High",
+            "**Expect some work** — helpdesk apps that sync the full order timeline from Shopify.",
+        ),
+        (
+            "Customer issue intake forms routed to support tooling",
+            "Shoppers submit structured requests (returns, product questions) that arrive in the ticketing stack.",
+            "Medium",
+            "**Expect some work** — forms apps or native forms + Flow.",
+        ),
+        (
+            "Structured merchandising and editorial fields (repeatable promos, ingredients, claims)",
+            "Merch teams edit rich modules without developers—clinical claims, press logos, bundles, ingredients blocks, etc.",
+            "High",
+            "**Expect some work** — metafields, metaobjects, and theme sections; optional visual page builder.",
+        ),
+        (
+            "Campaign landing URLs separate from core PDP templates",
+            "Long‑form `/lpage/…` style experiences for launches, bundles, or partnerships with their own layout system.",
+            "High",
+            "**Expect some work** — Shopify Pages + sections; redirect legacy URLs.",
+        ),
+        (
+            "Guided quizzes and recommendation flows",
+            "Interactive questionnaires map answers to SKUs or routines (e.g., skincare quiz).",
+            "High",
+            "**Expect some work** — quiz app or custom theme flow writing to cart or line‑item properties.",
+        ),
+        (
+            "Editorial magazine content alongside commerce",
+            "Articles, series, and related reading patterns that cross‑link products without slowing every page.",
+            "Medium",
+            "**Expect some work** — Online Store blog templates and linking strategy.",
+        ),
+        (
+            "Rich “My account” area (subscriptions, orders, recommendations)",
+            "Logged‑in shoppers manage payment methods, subscriptions, reorders, and personalized picks in a branded shell.",
+            "High",
+            "**Expect some work** — new customer accounts strategy + subscription portal apps.",
+        ),
+        (
+            "Replacement, exchange, and reship workflows",
+            "Operations create parallel fulfillment records with reasons, notes, warehouse export, and customer comms like normal orders.",
+            "High",
+            "**Expect some work** — returns/exchange apps or draft‑order patterns; rebuild staff steps from section 10.",
+        ),
+        (
+            "Region-specific shipping methods and business rules",
+            "Certain countries get unique carriers, free‑shipping thresholds, or restrictions driven by policy.",
+            "High",
+            "**Expect some work** — carrier service configuration, Functions, or shipping apps.",
+        ),
+        (
+            "Carrier rate shopping and label generation where used",
+            "Some flows buy labels or show live carrier rates at checkout depending on origin/destination.",
+            "Medium",
+            "**Expect some work** — Shopify Shipping and/or multi‑carrier apps.",
+        ),
+        (
+            "Pre‑orders and launch windows",
+            "Shoppers can buy before inventory arrives with clear ship dates or authorization holds.",
+            "Medium",
+            "**Expect some work** — preorder apps or selling plan APIs.",
+        ),
+        (
+            "Try‑before‑buy or trial programs (if offered)",
+            "Special fulfillment or authorization models for sampling programs.",
+            "Medium",
+            "**Expect some work** — dedicated trial/tBYB apps; confirm legal and payment capture rules.",
+        ),
+        (
+            "Project‑tool‑driven coupon issuance",
+            "When a row in internal planning/ops workflow reaches “approved,” the store receives a ready‑to‑use discount aligned to that campaign.",
+            "Medium",
+            "**Expect some work** — Shopify Flow, discount API, or middleware listening to the project tool.",
+        ),
+        (
+            "Optional shipping protection upsell at checkout",
+            "Shoppers can add parcel insurance or protection for a fee before paying.",
+            "Medium",
+            "**Expect some work** — shipping protection apps or checkout line‑item.",
+        ),
+        (
+            "Address autocomplete and formatting in checkout",
+            "Reduces typos and speeds mobile checkout using a lookup provider.",
+            "Medium",
+            "**Expect some work** — checkout extension or app providing suggestions.",
+        ),
+        (
+            "Seasonal merchandising toggles",
+            "Timed banners, product grids, or promos flip on/off for holidays without code deploys.",
+            "Medium",
+            "**Expect some work** — theme settings, metaobject flags, or scheduling apps.",
+        ),
+        (
+            "Abandoned checkout and browse recovery messaging",
+            "Shoppers who drop receive timed reminders with cart contents and compliance with consent.",
+            "Medium",
+            "**Expect some work** — ESP‑driven recovery plus Shopify checkout abandonment features.",
+        ),
+        (
+            "No‑code automations between the store and other SaaS",
+            "Zapier‑style triggers move orders, tags, or customers into spreadsheets, Slack, or databases.",
+            "Medium",
+            "**Expect some work** — Shopify Flow plus native Zapier/Make connectors.",
+        ),
+        (
+            "Operations analytics beyond native Shopify reports",
+            "Finance and ops export cohorts, LTV views, or custom slices for weekly reviews.",
+            "Medium",
+            "**Expect some work** — ShopifyQL, BI export, or analytics vendors with Shopify connectors.",
+        ),
+        (
+            "Optional marketplace listing sync",
+            "Selected SKUs sync to external marketplaces with inventory guards.",
+            "Medium",
+            "**Expect some work** — marketplace connector apps per channel.",
+        ),
+        (
+            "WordPress editorial ergonomics (admin columns, duplicating posts, SMTP)",
+            "Editors work faster inside WP admin; transactional mail uses a dedicated SMTP provider.",
+            "Low",
+            "**Not part of Shopify** — replace with Shopify admin patterns and Shopify/email vendor settings.",
+        ),
+        (
+            "Staff login hardening (two‑factor, role granularity)",
+            "Extra protection and fine roles for large content/marketing teams.",
+            "Low",
+            "**Not part of Shopify** — map to Shopify org security and staff permissions.",
+        ),
+    ]
 
-
-def default_row(slug: str) -> tuple[str, str, str]:
-    label = slug.replace("-", " ").replace("_", " ")
-    desc = (
-        f"This add-on (folder name **{slug}**) plugs into today’s WordPress store. "
-        f"It may show up for shoppers, staff, or only behind the scenes. "
-        "Someone who knows the live admin should confirm whether it is turned on and what it is used for. "
-        "On Shopify we will match what it does with either a built‑in Shopify feature, a well‑known app, or a small custom project."
-    )
-    return (
-        desc,
-        "Medium",
-        "**Expect some work:** Shopify usually covers the need, but not always “out of the box”—often an app or short custom setup.",
-    )
-
-
-def emit_plugin_inventory() -> str:
-    all_slugs = sorted(p.name for p in PLUGINS.iterdir() if p.is_dir())
-    slugs = [s for s in all_slugs if s not in EXCLUDED_PLUGIN_SLUGS]
-    lines: list[str] = []
-    lines.append("---\n\n")
-    lines.append("## 11. Installed plugins (exhaustive)\n\n")
-    lines.append(
-        f"_**{len(slugs)}** add-ons below (alphabetical). The bold name is the technical folder name—think of it as the “package label.” "
-        "If a line sounds vague, that only means the name does not explain itself; your web partner maps it to the real vendor or feature._\n\n"
-    )
-    lines.append(
-        "> [!IMPORTANT]\n"
-        "> **Not listed here on purpose:** unused YITH gift‑card folder, WPMU DEV updater client (licensing only), and the separate WPML “strings” package. "
-        "**Translating text inside buttons and add-ons** is covered in **section 0** so stakeholders read it once—not under two technical folder names.\n\n"
-    )
-    for slug in slugs:
-        desc, relevance, xfer = CUSTOM.get(slug, default_row(slug))
-        lines.append(f"### `{slug}`\n\n")
+    lines: list[str] = [
+        "---\n\n",
+        "## 11. Store capabilities to re‑home on Shopify (no plugin names)\n\n",
+        "> [!NOTE]\n",
+        "> This section is **only business capabilities**—things shoppers, marketing, finance, or ops need after migration. "
+        "It intentionally **does not** name WordPress plugin folders, SEO suites, cache plugins, image optimizers, or translation packages; "
+        "those are implementation details. Map each capability to Shopify native features, first‑party channels, or an app category.\n\n",
+    ]
+    for title, desc, rel, xfer in rows:
+        lines.append(f"### {title}\n\n")
         lines.append(f"- **Description:** {desc}\n")
-        lines.append(f"- **Relevance:** {relevance}\n")
+        lines.append(f"- **Relevance:** {rel}\n")
         lines.append(f"- **Transferability:** {xfer}\n\n")
     return "".join(lines)
 
@@ -864,8 +397,7 @@ def main() -> None:
     )
     body.append(
         "Theme wiring and checkout templates are summarized **once each** (not every PHP filename). "
-        "Section 11 lists almost every installed plugin folder—even boring ones—with a short note for the few folders **deliberately skipped** "
-        "(unused gift‑card package, licensing updater, and WPML “strings” explained in section 0 instead).\n\n"
+        "**Section 11** is a **capability checklist** (what the business must still have on Shopify)—not a list of WordPress package names.\n\n"
     )
     body.append("---\n\n")
 
@@ -886,7 +418,7 @@ def main() -> None:
     body.append("## 0. Big moving parts (several add-ons work together)\n\n")
     body.append(
         "> [!TIP]\n"
-        "> These threads describe **whole workflows** that span many items in section 11. "
+        "> These threads describe **whole workflows** that align with the capability checklist in section 11. "
         "Use them in workshops; they do not replace the detailed rows below.\n\n"
     )
     threads = [
@@ -919,11 +451,11 @@ def main() -> None:
             "Fraud and risky orders",
             "Before an order is accepted, outside services score risk; bots can be blocked and some checkout steps are watched closely.",
             "High",
-            "**Expect some work** — Shopify has built‑in fraud signals; some partners (Signifyd, Kount, etc.) are re‑connected via apps.",
+            "**Expect some work** — Shopify has built‑in fraud signals; reconnect your chosen fraud vendors via apps.",
         ),
         (
             "Getting the box out the door (and telling the customer where it is)",
-            "ShipBob, tracking emails, Narvar, AfterShip, warehouse exports, and the link to the Priority business system all feed this story.",
+            "Primary 3PL, tracking communications, warehouse export jobs, and ERP order posting together keep shoppers, warehouse, and finance aligned on fulfillment state.",
             "High",
             "**Expect some work** — Connectors and emails are rebuilt using Shopify’s order updates plus partner apps.",
             True,
@@ -957,7 +489,7 @@ def main() -> None:
     body.append(
         "- **Description:** "
         f"About **{n_libs}** small code modules load with every page to connect the design to real store behavior—cart, checkout, "
-        "languages, coupons, Klaviyo emails, address checks, SEO, quizzes, A/B tests, and more. "
+        "languages, coupons, marketing‑automation emails, address checks, SEO, quizzes, A/B tests, and more. "
         "Think of this as the **instruction list behind the scenes**; shoppers never see the filenames. "
         "Engineers use the theme’s `functions.php` file if they need the exact list.\n"
     )
@@ -995,7 +527,7 @@ def main() -> None:
     body.append("- **Transferability:** **Needs a fresh build** — must be understood before promising the same behavior on Shopify.\n\n")
     body.append("### Magazine helpers & SEO tweaks\n\n")
     body.append(
-        "- **Description:** Related articles, breadcrumbs, and a few Yoast SEO settings that change how old URLs behave.\n"
+        "- **Description:** Related articles, breadcrumbs, and legacy SEO/editor settings that change how some URLs and snippets behave.\n"
     )
     body.append("- **Relevance:** Medium\n")
     body.append("- **Transferability:** **Expect some work** — rebuild redirects and metadata inside Shopify.\n\n")
@@ -1051,31 +583,58 @@ def main() -> None:
         "> Shoppers never see these feeds, but **marketing, warehouse, and finance** often depend on them.\n\n"
     )
     rest_items = [
-        ("Text messages (Twilio)", "Lets the site send or verify SMS messages (for example two‑step flows)."),
-        ("Klaviyo profile updates", "Keeps Klaviyo profiles in sync when someone fills out special forms or promotions."),
+        ("SMS send and verification", "Lets the site send or verify text messages (for example two‑step flows) via a messaging gateway."),
+        (
+            "Email platform profile sync from forms",
+            "Keeps marketing‑database profiles in sync when someone completes special forms or promotions.",
+        ),
         ("Email verification for promotions", "Confirms email addresses before certain promotions unlock."),
-        ("Braintree dispute alerts", "When Braintree flags a payment dispute, the site can attach notes to the matching order."),
+        (
+            "Payment processor dispute signals",
+            "When the card processor flags a dispute, the site can attach notes to the matching order for finance.",
+        ),
         ("Order and subscription notes for staff tools", "Lets trusted internal tools read or write internal notes on orders or subscriptions."),
         (
             "AI and search crawler visit analytics",
             "Aggregates stored crawler traffic (which URLs were visited and how often over time) for monitoring and SEO-related visibility—shoppers never see this screen.",
         ),
-        ("ShipBob warehouse callbacks", "ShipBob tells WordPress when a parcel ships, is delayed, or is delivered."),
-        ("Secondary warehouse feed (“Green”)", "Another warehouse integration speaks the same “shipped” language for a different 3PL."),
-        ("Monday.com coupon bridge", "Creates or updates coupons when the Monday.com workflow says so."),
-        ("Yotpo coupon automation", "Lets Yotpo loyalty create or cancel coupon codes automatically."),
         (
-            "Miscellaneous staff helper APIs",
-            "Small one-off hooks used by internal dashboards—engineering should confirm which are still called.",
+            "Primary warehouse shipment callbacks",
+            "The main 3PL tells the site when a parcel ships, is delayed, or is delivered so statuses and emails stay accurate.",
+        ),
+        ("Secondary warehouse shipment callbacks", "A second logistics partner uses the same style of shipped/delivered signals."),
+        (
+            "Project‑tool‑driven coupon creation",
+            "Creates or updates coupons when an external project or ops workflow reaches the right state.",
+        ),
+        (
+            "Loyalty‑driven coupon automation",
+            "Creates or cancels discount codes automatically when loyalty rules fire.",
+        ),
+        (
+            "Miscellaneous staff helper hooks",
+            "Small one-off endpoints used by internal dashboards—engineering should confirm which are still called.",
         ),
         ("Chargeback lookup", "Looks up chargeback status for a given order for finance/support."),
         ("Geo privacy gate", "Controls what appears based on privacy / geography rules."),
-        ("Sellence product & coupon feed", "Exposes catalog/coupon data for an external partner system."),
-        ("Wunderkind product feed", "Sends catalog data to Wunderkind for onsite personalization."),
+        ("Partner catalog and coupon export", "Exposes catalog and coupon data for an external partner system."),
+        (
+            "Behavioral marketing product feed",
+            "Sends catalog snapshots to a partner that powers browse‑based onsite campaigns.",
+        ),
         ("Order summary widget", "Feeds a small admin widget with order totals."),
-        ("OptinMonster map helper", "Helps OptinMonster campaigns map to WordPress content if enabled."),
-        ("Klaviyo plugin APIs", "Official Klaviyo endpoints bundled with their WordPress plugin."),
-        ("Yoast / WP Rocket maintenance APIs", "Background housekeeping for SEO cache plugins—rarely shopper facing."),
+        (
+            "Lead‑capture campaign mapping",
+            "Maps lead‑capture campaigns to the right storefront content when that integration is enabled.",
+        ),
+        (
+            "Email marketing platform maintenance hooks",
+            "Server endpoints keep the email platform in sync with forms, lists, and custom events—rarely shopper facing.",
+        ),
+        (
+            "SEO and performance tooling maintenance hooks",
+            "Background jobs for search metadata, sitemaps, or HTML/asset cache housekeeping—rarely shopper facing.",
+        ),
     ]
     for title, desc in rest_items:
         body.append(f"### {title}\n\n")
@@ -1095,7 +654,7 @@ def main() -> None:
         ),
         (
             "redirections.php",
-            "Guesses the shopper’s language, fixes URLs, and remembers `store_switch` choices for WPML.",
+            "Guesses the shopper’s language, fixes URLs, and remembers multilingual `store_switch` choices.",
             "High",
             "**Expect some work:** rebuild with Shopify Markets + redirect import.",
         ),
@@ -1119,9 +678,9 @@ def main() -> None:
         ),
         (
             "om-map-output.php",
-            "Optional helper for OptinMonster mapping.",
+            "Optional helper for lead‑capture campaign mapping.",
             "Low",
-            "**Expect some work:** only if OptinMonster stays in the marketing stack.",
+            "**Expect some work:** only if the same lead‑capture tooling stays in the marketing stack.",
         ),
     ]
     for fname, desc, rel, xfer in mu_custom:
@@ -1158,11 +717,11 @@ def main() -> None:
             "_(Missing `docs/_pfm-panel-section.md` — run from repo with snippet present.)_\n\n"
         )
 
-    body.append(emit_plugin_inventory())
+    body.append(emit_capability_inventory())
 
     body.append(
         "\n---\n\n> [!TIP]\n"
-        "> **Regenerate this file** after plugins or the theme change: from the WordPress project folder run "
+        "> **Regenerate this file** after the theme or integrations change: from the WordPress project folder run "
         "`python docs/generate-shopify-inventory.py`.\n"
     )
 

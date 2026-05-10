@@ -11,7 +11,7 @@
 | **Relevance** | **High** — money, legal, shipping, languages, or subscriptions. **Medium** — marketing, content, or important experience. **Low** — small convenience or mostly internal. |
 | **Transferability** | **Easy move** — close match in Shopify or a common partner. **Expect some work** — apps or a short custom project. **Needs a fresh build** — redesign on Shopify. **Not part of Shopify** — goes away when WordPress is retired. |
 
-Theme wiring and checkout templates are summarized **once each** (not every PHP filename). Section 11 lists almost every installed plugin folder—even boring ones—with a short note for the few folders **deliberately skipped** (unused gift‑card package, licensing updater, and WPML “strings” explained in section 0 instead).
+Theme wiring and checkout templates are summarized **once each** (not every PHP filename). **Section 11** is a **capability checklist** (what the business must still have on Shopify)—not a list of WordPress package names.
 
 ---
 
@@ -28,7 +28,7 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 ## 0. Big moving parts (several add-ons work together)
 
 > [!TIP]
-> These threads describe **whole workflows** that span many items in section 11. Use them in workshops; they do not replace the detailed rows below.
+> These threads describe **whole workflows** that align with the capability checklist in section 11. Use them in workshops; they do not replace the detailed rows below.
 
 ### Many countries, many languages, many currencies
 
@@ -52,11 +52,11 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 
 - **Description:** Before an order is accepted, outside services score risk; bots can be blocked and some checkout steps are watched closely.
 - **Relevance:** High
-- **Transferability:** **Expect some work** — Shopify has built‑in fraud signals; some partners (Signifyd, Kount, etc.) are re‑connected via apps.
+- **Transferability:** **Expect some work** — Shopify has built‑in fraud signals; reconnect your chosen fraud vendors via apps.
 
 ### Getting the box out the door (and telling the customer where it is)
 
-- **Description:** ShipBob, tracking emails, Narvar, AfterShip, warehouse exports, and the link to the Priority business system all feed this story.
+- **Description:** Primary 3PL, tracking communications, warehouse export jobs, and ERP order posting together keep shoppers, warehouse, and finance aligned on fulfillment state.
 - **Relevance:** High
 - **Transferability:** **Expect some work** — Connectors and emails are rebuilt using Shopify’s order updates plus partner apps.
 
@@ -73,7 +73,7 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 
 ### Custom Particle theme wiring
 
-- **Description:** About **24** small code modules load with every page to connect the design to real store behavior—cart, checkout, languages, coupons, Klaviyo emails, address checks, SEO, quizzes, A/B tests, and more. Think of this as the **instruction list behind the scenes**; shoppers never see the filenames. Engineers use the theme’s `functions.php` file if they need the exact list.
+- **Description:** About **24** small code modules load with every page to connect the design to real store behavior—cart, checkout, languages, coupons, marketing‑automation emails, address checks, SEO, quizzes, A/B tests, and more. Think of this as the **instruction list behind the scenes**; shoppers never see the filenames. Engineers use the theme’s `functions.php` file if they need the exact list.
 - **Relevance:** High
 - **Transferability:** **Expect some work** — Shopify replaces the whole engine, but each shopper-facing habit must be checked so nothing is lost.
 
@@ -105,7 +105,7 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 
 ### Magazine helpers & SEO tweaks
 
-- **Description:** Related articles, breadcrumbs, and a few Yoast SEO settings that change how old URLs behave.
+- **Description:** Related articles, breadcrumbs, and legacy SEO/editor settings that change how some URLs and snippets behave.
 - **Relevance:** Medium
 - **Transferability:** **Expect some work** — rebuild redirects and metadata inside Shopify.
 
@@ -146,15 +146,15 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 > [!TIP]
 > Shoppers never see these feeds, but **marketing, warehouse, and finance** often depend on them.
 
-### Text messages (Twilio)
+### SMS send and verification
 
-- **Description:** Lets the site send or verify SMS messages (for example two‑step flows).
+- **Description:** Lets the site send or verify text messages (for example two‑step flows) via a messaging gateway.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Klaviyo profile updates
+### Email platform profile sync from forms
 
-- **Description:** Keeps Klaviyo profiles in sync when someone fills out special forms or promotions.
+- **Description:** Keeps marketing‑database profiles in sync when someone completes special forms or promotions.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
@@ -164,9 +164,9 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Braintree dispute alerts
+### Payment processor dispute signals
 
-- **Description:** When Braintree flags a payment dispute, the site can attach notes to the matching order.
+- **Description:** When the card processor flags a dispute, the site can attach notes to the matching order for finance.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
@@ -182,33 +182,33 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### ShipBob warehouse callbacks
+### Primary warehouse shipment callbacks
 
-- **Description:** ShipBob tells WordPress when a parcel ships, is delayed, or is delivered.
+- **Description:** The main 3PL tells the site when a parcel ships, is delayed, or is delivered so statuses and emails stay accurate.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Secondary warehouse feed (“Green”)
+### Secondary warehouse shipment callbacks
 
-- **Description:** Another warehouse integration speaks the same “shipped” language for a different 3PL.
+- **Description:** A second logistics partner uses the same style of shipped/delivered signals.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Monday.com coupon bridge
+### Project‑tool‑driven coupon creation
 
-- **Description:** Creates or updates coupons when the Monday.com workflow says so.
+- **Description:** Creates or updates coupons when an external project or ops workflow reaches the right state.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Yotpo coupon automation
+### Loyalty‑driven coupon automation
 
-- **Description:** Lets Yotpo loyalty create or cancel coupon codes automatically.
+- **Description:** Creates or cancels discount codes automatically when loyalty rules fire.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Miscellaneous staff helper APIs
+### Miscellaneous staff helper hooks
 
-- **Description:** Small one-off hooks used by internal dashboards—engineering should confirm which are still called.
+- **Description:** Small one-off endpoints used by internal dashboards—engineering should confirm which are still called.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
@@ -224,15 +224,15 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Sellence product & coupon feed
+### Partner catalog and coupon export
 
-- **Description:** Exposes catalog/coupon data for an external partner system.
+- **Description:** Exposes catalog and coupon data for an external partner system.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Wunderkind product feed
+### Behavioral marketing product feed
 
-- **Description:** Sends catalog data to Wunderkind for onsite personalization.
+- **Description:** Sends catalog snapshots to a partner that powers browse‑based onsite campaigns.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
@@ -242,21 +242,21 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### OptinMonster map helper
+### Lead‑capture campaign mapping
 
-- **Description:** Helps OptinMonster campaigns map to WordPress content if enabled.
+- **Description:** Maps lead‑capture campaigns to the right storefront content when that integration is enabled.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Klaviyo plugin APIs
+### Email marketing platform maintenance hooks
 
-- **Description:** Official Klaviyo endpoints bundled with their WordPress plugin.
+- **Description:** Server endpoints keep the email platform in sync with forms, lists, and custom events—rarely shopper facing.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
-### Yoast / WP Rocket maintenance APIs
+### SEO and performance tooling maintenance hooks
 
-- **Description:** Background housekeeping for SEO cache plugins—rarely shopper facing.
+- **Description:** Background jobs for search metadata, sitemaps, or HTML/asset cache housekeeping—rarely shopper facing.
 - **Relevance:** Medium to High — only matters if finance, warehouse, marketing, or a partner integration still relies on this feed.
 - **Transferability:** **Expect some work** — rebuild using Shopify webhooks, partner apps, or a small middleware service.
 
@@ -270,7 +270,7 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 
 ### Always‑on file: `redirections.php`
 
-- **Description:** Guesses the shopper’s language, fixes URLs, and remembers `store_switch` choices for WPML.
+- **Description:** Guesses the shopper’s language, fixes URLs, and remembers multilingual `store_switch` choices.
 - **Relevance:** High
 - **Transferability:** **Expect some work:** rebuild with Shopify Markets + redirect import.
 
@@ -294,9 +294,9 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 
 ### Always‑on file: `om-map-output.php`
 
-- **Description:** Optional helper for OptinMonster mapping.
+- **Description:** Optional helper for lead‑capture campaign mapping.
 - **Relevance:** Low
-- **Transferability:** **Expect some work:** only if OptinMonster stays in the marketing stack.
+- **Transferability:** **Expect some work:** only if the same lead‑capture tooling stays in the marketing stack.
 
 ### WP Engine hosting bundles
 
@@ -331,7 +331,7 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 
 ### Customers: search, profiles, support views, credits, and loyalty
 
-- **Description:** Staff search for customers, open profiles for read and update, and sometimes work in a “support as customer” mode for troubleshooting. The panel ties into Yotpo loyalty for point adjustments and into Woo store credit ledgers with the ability to post adjustments—finance and support use these for refunds-as-credit and goodwill gestures.
+- **Description:** Staff search for customers, open profiles for read and update, and sometimes work in a “support as customer” mode for troubleshooting. The panel ties into the **loyalty program** for point adjustments and into **store credit** ledgers with the ability to post adjustments—finance and support use these for refunds-as-credit and goodwill gestures.
 - **Relevance:** High
 - **Transferability:** **Expect some work** — customer identity, staff impersonation rules, credits, and loyalty spread across Shopify Admin and partner apps on the new stack.
 
@@ -358,909 +358,313 @@ Theme wiring and checkout templates are summarized **once each** (not every PHP 
 
 ---
 
-## 11. Installed plugins (exhaustive)
+## 11. Store capabilities to re‑home on Shopify (no plugin names)
 
-_**149** add-ons below (alphabetical). The bold name is the technical folder name—think of it as the “package label.” If a line sounds vague, that only means the name does not explain itself; your web partner maps it to the real vendor or feature._
+> [!NOTE]
+> This section is **only business capabilities**—things shoppers, marketing, finance, or ops need after migration. It intentionally **does not** name WordPress plugin folders, SEO suites, cache plugins, image optimizers, or translation packages; those are implementation details. Map each capability to Shopify native features, first‑party channels, or an app category.
 
-> [!IMPORTANT]
-> **Not listed here on purpose:** unused YITH gift‑card folder, WPMU DEV updater client (licensing only), and the separate WPML “strings” package. **Translating text inside buttons and add-ons** is covered in **section 0** so stakeholders read it once—not under two technical folder names.
+### Core catalog, cart, checkout, and orders
 
-### `PriorityAPI`
-
-- **Description:** Priority ERP API integration.
+- **Description:** Shoppers discover products, configure variants, use a cart, complete checkout, and receive confirmations; staff rely on order records, statuses, and customer-visible order history.
 - **Relevance:** High
-- **Transferability:** **Expect some work:** middleware posting Shopify orders to Priority.
+- **Transferability:** **Needs a fresh build** — Shopify becomes the commerce system of record; every edge case must be re‑validated.
 
-### `PriorityApiCustomCode`
+### Multilingual storefront and market-aware pricing
 
-- **Description:** Custom code layer on Priority API.
+- **Description:** URLs, navigation, and product copy follow the shopper’s language; prices and settlement currency follow market rules.
 - **Relevance:** High
-- **Transferability:** **Needs a fresh build:** port to middleware.
+- **Transferability:** **Expect some work** — Shopify Markets plus translation workflow; plan redirects and bookmarks.
 
-### `WooCommercePriorityAPI`
+### Locale-specific media when marketing differs by country
 
-- **Description:** Alternate or layered Priority Woo bridge — confirm active.
-- **Relevance:** High
-- **Transferability:** **Expect some work:**
-
-### `account-page-recommended-products`
-
-- **Description:** Recommended products on account page.
+- **Description:** Some regions need different hero images, PDFs, or downloads than the default language—not only translated text.
 - **Relevance:** Medium
-- **Transferability:** **Expect some work:** personalization app or theme.
+- **Transferability:** **Expect some work** — metafields, metaobjects, or per‑market content in the theme.
 
-### `add-search-to-menu`
+### Search engine metadata, structured data, XML sitemaps, and hreflang
 
-- **Description:** This add-on (folder name **add-search-to-menu**) plugs into today’s WordPress store. It may show up for shoppers, staff, or only behind the scenes. Someone who knows the live admin should confirm whether it is turned on and what it is used for. On Shopify we will match what it does with either a built‑in Shopify feature, a well‑known app, or a small custom project.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Shopify usually covers the need, but not always “out of the box”—often an app or short custom setup.
-
-### `add_upsells_option_ms`
-
-- **Description:** Adds upsell options to subscription/cart flows (custom).
+- **Description:** Pages expose correct titles/descriptions, rich results where appropriate, crawlable sitemaps, and language alternates for Google.
 - **Relevance:** High
-- **Transferability:** **Expect some work:**
+- **Transferability:** **Expect some work** — Shopify SEO fields, JSON‑LD apps or theme logic, sitemap + Markets hreflang strategy.
 
-### `advanced-cron-manager`
+### Redirect management and legacy URL hygiene
 
-- **Description:** Cron UI for WP.
+- **Description:** 301/302 rules and logs when campaigns end or paths change; avoids broken inbound links.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — import redirects into Shopify; keep a governance process.
+
+### Full‑page and asset performance (caching, compression, script bundling)
+
+- **Description:** HTML and static assets are cached and minified so repeat visits feel fast on real devices.
+- **Relevance:** Medium
+- **Transferability:** **Not part of Shopify 1:1** — Shopify’s CDN and theme performance replace host‑specific caching; still needs tuning.
+
+### Image weight and modern formats in the storefront
+
+- **Description:** Images are resized, compressed, and served in efficient formats where browsers support them.
 - **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** Shopify scheduled jobs via apps.
+- **Transferability:** **Easy move / expect some work** — Shopify’s image pipeline covers most needs; confirm art direction and breakpoints.
 
-### `advanced-custom-fields-pro`
+### Human-readable HTML sitemap for visitors
 
-- **Description:** ACF Pro fields on pages/products/options.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** metafields + metaobject definitions + admin UI.
-
-### `afterpay-gateway-for-woocommerce`
-
-- **Description:** Afterpay / Clearpay BNPL.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Shop Pay Installments / Afterpay Shopify.
-
-### `aftership-woocommerce-tracking`
-
-- **Description:** AfterShip tracking.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** AfterShip app.
-
-### `alert-system`
-
-- **Description:** Internal alerts.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Slack/email from Flow.
-
-### `all-upsells`
-
-- **Description:** Upsell flows: thank-you page, post-purchase, BAS/PPU modules (see `includes/`).
-- **Relevance:** High
-- **Transferability:** **Expect some work:** post-purchase apps, checkout upsell extensions.
-
-### `blotout-edgetag`
-
-- **Description:** Blotout EdgeTag / customer data platform.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Shopify Customer Privacy + server pixels.
-
-### `bluesnap-payment-gateway-for-woocommerce`
-
-- **Description:** BlueSnap payment gateway.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify payment provider availability; may require different PSP.
-
-### `braintree-saved-token-gateway`
-
-- **Description:** Braintree vaulted cards / gateway.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify Payments vs Braintree; token migration project.
-
-### `card-checkout-ms`
-
-- **Description:** Checkout card UI / testimonial carousel (custom).
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** theme + checkout extensions.
-
-### `cart-sidebar`
-
-- **Description:** Slide-out cart UI; integrates WPML/WCML currency and product ID mapping.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** cart drawer theme + AJAX cart APIs on Shopify.
-
-### `cart-sidebar-v2`
-
-- **Description:** Alternate cart sidebar implementation — confirm which is primary in production.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:**
-
-### `codepress-admin-columns`
-
-- **Description:** Admin list column customization.
+- **Description:** A browsable index of important pages for people (distinct from the machine XML sitemap).
 - **Relevance:** Low
-- **Transferability:** N/A
+- **Transferability:** **Expect some work** — single theme page or lightweight app section.
 
-### `complyt-address-validator`
+### Subscribe & save and recurring billing
 
-- **Description:** Complyt address validation.
+- **Description:** Customers enroll in schedules, renewals charge automatically, failed payments retry, and shoppers self‑serve changes where allowed.
 - **Relevance:** High
-- **Transferability:** **Expect some work:** address validation at checkout.
+- **Transferability:** **Expect some work** — Shopify subscription contracts plus your chosen subscription partner.
 
-### `custom-coupon`
+### Store credit, gift value, and coupon strategies beyond simple codes
 
-- **Description:** Custom coupon logic beyond core Woo coupons.
+- **Description:** Balances can be held on the customer, applied at checkout, combined with promotions, and sometimes issued from support workflows.
 - **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify Discount Functions / discount apps.
+- **Transferability:** **Expect some work** — Shopify store credit / gift cards plus discount apps or Functions as needed.
 
-### `duracelltomi-google-tag-manager`
+### Complex cart discount rules (conditions, stacks, exclusions)
 
-- **Description:** GTM container injection and dataLayer.
+- **Description:** Discounts depend on cart composition, customer segments, channels, or time windows—not only a single promo code.
 - **Relevance:** High
-- **Transferability:** **Easy move:** GTM in theme or Shopify app.
+- **Transferability:** **Expect some work** — Shopify Discount Functions, Shopify Scripts successors, or discount apps.
 
-### `empty-cart-upsells`
+### In‑funnel and post‑purchase upsells
 
-- **Description:** Upsells when cart empty.
+- **Description:** Additional offers appear in the cart drawer, checkout path, or immediately after purchase to raise basket size.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — checkout UI extensions and post‑purchase offer apps.
+
+### Branded checkout with many payment options and vaulted cards
+
+- **Description:** Checkout matches brand guidelines; shoppers may use cards on file, wallets, BNPL, or regional methods with a smooth UX.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — Shopify Payments and enabled gateways; token migration where legally allowed.
+
+### Third‑party fraud signals, manual review hooks, and dispute workflows
+
+- **Description:** Orders are scored before capture; high‑risk flows are flagged; chargebacks produce finance‑friendly notes on the order.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — Shopify Protect / fraud filters plus whichever third‑party fraud vendor you standardize on.
+
+### Checkout abuse and bot mitigation
+
+- **Description:** Automated checkout abuse is throttled with challenges or risk checks tuned for cosmetics/beauty traffic.
 - **Relevance:** Medium
-- **Transferability:** **Expect some work:**
+- **Transferability:** **Expect some work** — Shopify bot protection, Flow rules, or CAPTCHA/checkout apps.
 
-### `export-refunds-to-csv`
+### Tax determination and checkout address validation
 
-- **Description:** Export refunds to CSV.
+- **Description:** Taxes follow the ship‑to jurisdiction; addresses are validated or corrected before fulfillment to cut carrier fees.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — Shopify Tax plus carrier‑grade address validation apps.
+
+### Warehouse and 3PL order lifecycle (export, ship, callback)
+
+- **Description:** Orders are pushed to fulfillment partners; partners send ship, delay, or delivery signals back so statuses and emails stay accurate.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — fulfillment apps and order webhooks; middleware only where ERP rules require it.
+
+### Customer-facing shipment tracking and post‑purchase communications
+
+- **Description:** After purchase, shoppers get tracking pages, proactive delay notices, and branded delivery experiences where configured.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — post‑purchase tracking and delivery‑comms apps on Shopify plus transactional email design.
+
+### ERP or finance system order posting
+
+- **Description:** Accepted orders land in the corporate ERP for allocation, invoicing, or manufacturing—without manual re‑typing.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — middleware or iPaaS posting Shopify orders into your ERP’s APIs.
+
+### Email and SMS automation tied to storefront behavior
+
+- **Description:** Browse, cart, checkout, and post‑purchase events drive segments, flows, and consent-aware messaging.
+- **Relevance:** High
+- **Transferability:** **Easy move / expect some work** — connect your ESP to Shopify; re‑wire events and consent carefully.
+
+### Pop‑ups, banners, and gated lead capture
+
+- **Description:** Campaigns show targeted overlays or forms based on URL, segment, or behavior; leads sync to marketing lists.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — embedded capture tools or Shopify‑native forms plus segmentation.
+
+### Behavioral onsite personalization and triggered campaigns
+
+- **Description:** Browse patterns change which creatives, reminders, or incentives a returning visitor sees across sessions.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — personalization vendors with Shopify connectors plus first‑party data hygiene.
+
+### Product reviews, ratings, and Q&A surfaces
+
+- **Description:** PDPs and landing blocks show syndicated or first‑party reviews with moderation and schema where needed.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — review platforms on Shopify with import/migration planning.
+
+### Loyalty points, tiers, and promotion codes generated from loyalty events
+
+- **Description:** Customers earn and burn points; the stack can mint or revoke discount codes when loyalty rules fire.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — loyalty suite on Shopify; align coupon policies with finance.
+
+### Embedded third‑party trust and syndicated review portals
+
+- **Description:** Trustpilot or similar widgets appear where marketing wants social proof beyond native reviews.
+- **Relevance:** Medium
+- **Transferability:** **Easy move** — vendor’s Shopify snippet or theme embed.
+
+### Affiliate and partnership attribution
+
+- **Description:** Partner links and conversions are tracked for commission reporting without double‑counting paid channels.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — affiliate/partner platforms with Shopify integration plus UTM governance.
+
+### Social and ads catalog feeds (Meta, TikTok, etc.)
+
+- **Description:** Product catalogs stay in sync with social commerce channels for ads and shoppable experiences.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — Shopify sales channels and feed QA.
+
+### Tag management and multi‑pixel measurement with server‑side options
+
+- **Description:** GTM plus ad pixels (Meta, GA, etc.) fire consistently; server‑side or CAPI‑style events reduce loss from blockers.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — Shopify Customer Privacy + partner pixels; validate revenue in QA.
+
+### Helpdesk with full order timeline for agents
+
+- **Description:** Support sees orders, tags, and key events beside tickets to answer “where is my order?” quickly.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — helpdesk apps that sync the full order timeline from Shopify.
+
+### Customer issue intake forms routed to support tooling
+
+- **Description:** Shoppers submit structured requests (returns, product questions) that arrive in the ticketing stack.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — forms apps or native forms + Flow.
+
+### Structured merchandising and editorial fields (repeatable promos, ingredients, claims)
+
+- **Description:** Merch teams edit rich modules without developers—clinical claims, press logos, bundles, ingredients blocks, etc.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — metafields, metaobjects, and theme sections; optional visual page builder.
+
+### Campaign landing URLs separate from core PDP templates
+
+- **Description:** Long‑form `/lpage/…` style experiences for launches, bundles, or partnerships with their own layout system.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — Shopify Pages + sections; redirect legacy URLs.
+
+### Guided quizzes and recommendation flows
+
+- **Description:** Interactive questionnaires map answers to SKUs or routines (e.g., skincare quiz).
+- **Relevance:** High
+- **Transferability:** **Expect some work** — quiz app or custom theme flow writing to cart or line‑item properties.
+
+### Editorial magazine content alongside commerce
+
+- **Description:** Articles, series, and related reading patterns that cross‑link products without slowing every page.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — Online Store blog templates and linking strategy.
+
+### Rich “My account” area (subscriptions, orders, recommendations)
+
+- **Description:** Logged‑in shoppers manage payment methods, subscriptions, reorders, and personalized picks in a branded shell.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — new customer accounts strategy + subscription portal apps.
+
+### Replacement, exchange, and reship workflows
+
+- **Description:** Operations create parallel fulfillment records with reasons, notes, warehouse export, and customer comms like normal orders.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — returns/exchange apps or draft‑order patterns; rebuild staff steps from section 10.
+
+### Region-specific shipping methods and business rules
+
+- **Description:** Certain countries get unique carriers, free‑shipping thresholds, or restrictions driven by policy.
+- **Relevance:** High
+- **Transferability:** **Expect some work** — carrier service configuration, Functions, or shipping apps.
+
+### Carrier rate shopping and label generation where used
+
+- **Description:** Some flows buy labels or show live carrier rates at checkout depending on origin/destination.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — Shopify Shipping and/or multi‑carrier apps.
+
+### Pre‑orders and launch windows
+
+- **Description:** Shoppers can buy before inventory arrives with clear ship dates or authorization holds.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — preorder apps or selling plan APIs.
+
+### Try‑before‑buy or trial programs (if offered)
+
+- **Description:** Special fulfillment or authorization models for sampling programs.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — dedicated trial/tBYB apps; confirm legal and payment capture rules.
+
+### Project‑tool‑driven coupon issuance
+
+- **Description:** When a row in internal planning/ops workflow reaches “approved,” the store receives a ready‑to‑use discount aligned to that campaign.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — Shopify Flow, discount API, or middleware listening to the project tool.
+
+### Optional shipping protection upsell at checkout
+
+- **Description:** Shoppers can add parcel insurance or protection for a fee before paying.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — shipping protection apps or checkout line‑item.
+
+### Address autocomplete and formatting in checkout
+
+- **Description:** Reduces typos and speeds mobile checkout using a lookup provider.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — checkout extension or app providing suggestions.
+
+### Seasonal merchandising toggles
+
+- **Description:** Timed banners, product grids, or promos flip on/off for holidays without code deploys.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — theme settings, metaobject flags, or scheduling apps.
+
+### Abandoned checkout and browse recovery messaging
+
+- **Description:** Shoppers who drop receive timed reminders with cart contents and compliance with consent.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — ESP‑driven recovery plus Shopify checkout abandonment features.
+
+### No‑code automations between the store and other SaaS
+
+- **Description:** Zapier‑style triggers move orders, tags, or customers into spreadsheets, Slack, or databases.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — Shopify Flow plus native Zapier/Make connectors.
+
+### Operations analytics beyond native Shopify reports
+
+- **Description:** Finance and ops export cohorts, LTV views, or custom slices for weekly reviews.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — ShopifyQL, BI export, or analytics vendors with Shopify connectors.
+
+### Optional marketplace listing sync
+
+- **Description:** Selected SKUs sync to external marketplaces with inventory guards.
+- **Relevance:** Medium
+- **Transferability:** **Expect some work** — marketplace connector apps per channel.
+
+### WordPress editorial ergonomics (admin columns, duplicating posts, SMTP)
+
+- **Description:** Editors work faster inside WP admin; transactional mail uses a dedicated SMTP provider.
 - **Relevance:** Low
-- **Transferability:** **Expect some work:** reporting export from Shopify.
+- **Transferability:** **Not part of Shopify** — replace with Shopify admin patterns and Shopify/email vendor settings.
 
-### `export-stats`
+### Staff login hardening (two‑factor, role granularity)
 
-- **Description:** Export stats to Google Sheets.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Analytics API / Sheets.
-
-### `facebook-store-integration`
-
-- **Description:** Facebook / Meta catalog integration.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Meta sales channel.
-
-### `fermiac-siftscience-for-woocommerce`
-
-- **Description:** Sift Science integration for Woo.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify Fraud / third-party.
-
-### `force-default-variant-for-woocommerce`
-
-- **Description:** Forces default variation selection when variations exist.
+- **Description:** Extra protection and fine roles for large content/marketing teams.
 - **Relevance:** Low
-- **Transferability:** **Expect some work:** rarely needed if SKUs are simple; confirm use.
-
-### `force-regenerate-thumbnails`
-
-- **Description:** Regenerate attachment sizes.
-- **Relevance:** Low
-- **Transferability:** N/A
-
-### `gravite-landing-pages`
-
-- **Description:** Gravité-specific landing page templates.
-- **Relevance:** High
-- **Transferability:** **Expect some work:**
-
-### `impact-partnership-cloud`
-
-- **Description:** Impact affiliate / partnership tracking.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Impact Shopify integration.
-
-### `inspect-http-requests`
-
-- **Description:** Inspect HTTP requests in admin.
-- **Relevance:** Low
-- **Transferability:** N/A
-
-### `japan-landing-pages`
-
-- **Description:** Japan market landing pages.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Markets + templates.
-
-### `kadence-woocommerce-email-designer`
-
-- **Description:** Kadence Woo email template designer.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Shopify Notifications customization.
-
-### `klaviyo`
-
-- **Description:** Klaviyo official Woo plugin: events, lists, forms.
-- **Relevance:** High
-- **Transferability:** **Easy move:** Klaviyo Shopify integration.
-
-### `klaviyo-wp`
-
-- **Description:** Additional Klaviyo WordPress integration package.
-- **Relevance:** High
-- **Transferability:** Full
-
-### `kount-fraud-prevention`
-
-- **Description:** Kount fraud screening on checkout.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Kount for Shopify or equivalent.
-
-### `kount-orders-report`
-
-- **Description:** This add-on (folder name **kount-orders-report**) plugs into today’s WordPress store. It may show up for shoppers, staff, or only behind the scenes. Someone who knows the live admin should confirm whether it is turned on and what it is used for. On Shopify we will match what it does with either a built‑in Shopify feature, a well‑known app, or a small custom project.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Shopify usually covers the need, but not always “out of the box”—often an app or short custom setup.
-
-### `landing-pages`
-
-- **Description:** Landing page plugin with blocks and templates (e.g. Marsmen-like LP).
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify Pages + metaobjects + theme sections.
-
-### `livecart-by-wp-engine`
-
-- **Description:** WP Engine LiveCart integration.
-- **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** host-specific.
-
-### `loco-translate`
-
-- **Description:** Translate theme/plugin strings locally.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** locale JSON / Markets.
-
-### `log-http-requests`
-
-- **Description:** Logs outbound HTTP for debugging.
-- **Relevance:** Low
-- **Transferability:** N/A
-
-### `login-visit-counter`
-
-- **Description:** Tracks login visits.
-- **Relevance:** Low
-- **Transferability:** N/A
-
-### `metorik-helper`
-
-- **Description:** Metorik analytics helper for Woo.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Metorik Shopify.
-
-### `metronet-profile-picture`
-
-- **Description:** Profile pictures for users.
-- **Relevance:** Low
-- **Transferability:** **Expect some work:** customer account profile apps.
-
-### `myplugin`
-
-- **Description:** Placeholder or small custom plugin — audit contents.
-- **Relevance:** Low
-- **Transferability:** **Needs a fresh build:** ask engineering what this small package actually does.
-
-### `myscripts`
-
-- **Description:** Custom scripts plugin (site-specific).
-- **Relevance:** Medium
-- **Transferability:** **Needs a fresh build:** ask engineering what this small package actually does.
-
-### `narvar-tracking-integration`
-
-- **Description:** Narvar post-purchase tracking / comms.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Narvar Shopify integration.
-
-### `newrelic-transaction-renamer`
-
-- **Description:** Renames New Relic transactions for WP.
-- **Relevance:** Low
-- **Transferability:** N/A
-
-### `optinmonster`
-
-- **Description:** OptinMonster lead capture.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** OM Shopify embed.
-
-### `orders-pay-verify`
-
-- **Description:** Order pay verification flow.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:**
-
-### `orderswidget-summary`
-
-- **Description:** Small internal API that shows order summaries inside WordPress admin widgets.
-- **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** rebuild in a staff dashboard or BI tool if still needed.
-
-### `outersignal-order-export`
-
-- **Description:** Order export to Outersignal.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** webhooks.
-
-### `package_protection_ms`
-
-- **Description:** Package protection upsell on checkout.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** shipping protection apps.
-
-### `particleformen-checkout`
-
-- **Description:** Particle‑specific checkout tweaks layered on top of WooCommerce (together with the theme checkout code).
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify Checkout allows apps and small UI extensions instead of the old PHP approach.
-
-### `pfm-chargebacks-utils`
-
-- **Description:** Chargeback utilities + REST.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** payment processor dashboards.
-
-### `pfm-checkout-bot-block`
-
-- **Description:** Bot blocking on checkout.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Shopify bot protection + CAPTCHA apps.
-
-### `pfm-checkout-observer`
-
-- **Description:** Observes checkout events (logging / risk / analytics — confirm).
-- **Relevance:** High
-- **Transferability:** **Expect some work:** webhooks + Flow.
-
-### `pfm-csv-uploader`
-
-- **Description:** Admin CSV upload utilities.
-- **Relevance:** Medium
-- **Transferability:** **Not part of Shopify:** Shopify bulk import / Admin API.
-
-### `pfm-geo-privacy`
-
-- **Description:** Geo / privacy gate (REST namespace).
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Markets + consent apps.
-
-### `pfm-holiday-season`
-
-- **Description:** Seasonal promos / toggles.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Shopify scheduled discounts.
-
-### `pfm-kill-injected-ui`
-
-- **Description:** Hides stray admin or storefront UI injected by other tools.
-- **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** WordPress-only housekeeping.
-
-### `pfm-klaviyo-monitor`
-
-- **Description:** Monitoring / hooks for Klaviyo health.
-- **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** ops tooling; replace with monitoring on new stack.
-
-### `pfm-monday-coupons`
-
-- **Description:** REST-driven coupon integration (Monday workflow).
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Zapier/Flow + discount APIs.
-
-### `pfm-panel`
-
-- **Description:** The internal “mission control” staff use to search orders, resend emails, push refunds, adjust store credit, export to the warehouse, and similar day‑to‑day jobs.
-- **Relevance:** High
-- **Transferability:** **Needs a fresh build:** Shopify Admin plus Flow/partner apps—or a lightweight custom dashboard—replace this over time.
-
-### `pfm-signifyd-integration`
-
-- **Description:** Signifyd fraud scoring / order submission.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Signifyd Shopify app or custom integration.
-
-### `pfm-skincare-quiz`
-
-- **Description:** Particle skincare quiz templates and flow.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** rebuild as theme section or app.
-
-### `pfm-smarty-address-validator`
-
-- **Description:** Smarty (USPS) address validation.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Smarty or equivalent on Shopify.
-
-### `pfm-store-credits`
-
-- **Description:** Store credit balance and checkout application (frontend + admin).
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify store credit / gift card primitives differ; likely app or custom.
-
-### `pfm-tools-utils`
-
-- **Description:** Misc internal tools + REST routes.
-- **Relevance:** Medium
-- **Transferability:** **Needs a fresh build:** review with engineering before promising dates.
-
-### `pixelyoursite-pro`
-
-- **Description:** PixelYourSite: Meta/CAPI/GA events.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** PYS Shopify or server events.
-
-### `pixelyoursite-super-pack`
-
-- **Description:** PYS add-on pack.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:**
-
-### `post-duplicator`
-
-- **Description:** Duplicate posts/pages for editors.
-- **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** editor workflow.
-
-### `post-orders-to-priority`
-
-- **Description:** Pushes orders to Priority system.
-- **Relevance:** High
-- **Transferability:** **Expect some work:**
-
-### `post-purchase-upsell`
-
-- **Description:** Post-purchase one-click upsell.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** post-purchase apps.
-
-### `post-smtp`
-
-- **Description:** SMTP mailer for WP emails.
-- **Relevance:** Medium
-- **Transferability:** **Not part of Shopify:** Shopify email domain; transactional via apps.
-
-### `preorder-products`
-
-- **Description:** Preorder selling for products.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** preorder apps.
-
-### `product-guide`
-
-- **Description:** Product guide experience.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** content pages + metafields.
-
-### `product-landing-pages`
-
-- **Description:** Product-scoped landing experiences.
-- **Relevance:** High
-- **Transferability:** **Expect some work:**
-
-### `purchase-push-notifications`
-
-- **Description:** Push notifications on purchase.
-- **Relevance:** Low
-- **Transferability:** **Expect some work:** mobile app channel if applicable.
-
-### `quiz`
-
-- **Description:** Generic quiz plugin for Particle.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:**
-
-### `recaptcha-for-woocommerce`
-
-- **Description:** reCAPTCHA on Woo checkout/account.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Shopify bot challenge / apps.
-
-### `redirection`
-
-- **Description:** 301/302 redirect manager and logs.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify URL redirects (import).
-
-### `richpanel-for-woocommerce`
-
-- **Description:** Richpanel helpdesk + customer timeline for Woo orders.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Richpanel Shopify app.
-
-### `scheduled-actions`
-
-- **Description:** Action Scheduler tables (often bundled with Woo).
-- **Relevance:** Medium
-- **Transferability:** **Not part of Shopify:** platform cron/queues differ.
-
-### `sellence-api`
-
-- **Description:** Sellence REST API (`/products`, `/coupons`).
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** custom app on Shopify.
-
-### `shipbob-integration`
-
-- **Description:** ShipBob fulfillment integration.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** ShipBob Shopify connector or order webhook app.
-
-### `show-current-template`
-
-- **Description:** Dev: shows current PHP template.
-- **Relevance:** Low
-- **Transferability:** N/A
-
-### `sift-wp`
-
-- **Description:** Sift-related WordPress glue.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:**
-
-### `sitemap-custom`
-
-- **Description:** Custom sitemap generation for Particle.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Shopify sitemap + hreflang via Markets.
-
-### `sitepress-multilingual-cms`
-
-- **Description:** Runs the store’s multiple languages—translated pages, menus, and the correct links for Google in each country.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify Markets plus translation tools replace most of this, but bookmarks and URLs need a careful plan.
-
-### `sky-wcs-no-periods`
-
-- **Description:** Cleans subscription product titles (removes periods).
-- **Relevance:** Low
-- **Transferability:** **Expect some work:** naming in Shopify subscriptions.
-
-### `smtp-mailgun-connector`
-
-- **Description:** Mailgun SMTP connector.
-- **Relevance:** Low
-- **Transferability:** N/A
-
-### `special-shipping-methods`
-
-- **Description:** Custom shipping methods / rules.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** carrier service + Functions or shipping apps.
-
-### `stampedio`
-
-- **Description:** Stamped.io reviews widgets / integration.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Stamped Shopify.
-
-### `stampedio-product-reviews`
-
-- **Description:** Stamped product reviews companion.
-- **Relevance:** High
-- **Transferability:** **Expect some work:**
-
-### `sticky-cta`
-
-- **Description:** Sticky CTA bar.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** theme.
-
-### `subscriptions-utils`
-
-- **Description:** Particle‑specific helpers that tweak how subscriptions behave behind the scenes.
-- **Relevance:** High
-- **Transferability:** **Needs a fresh build:** replan each behavior inside Shopify Flow, a subscription partner, or a small custom service.
-
-### `tax-helper`
-
-- **Description:** Tax helper utilities for Woo.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:**
-
-### `ticket-submissions`
-
-- **Description:** Support ticket submission from site.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** forms app / Zendesk / Gorgias.
-
-### `tiktok-shop-integration`
-
-- **Description:** TikTok Shop / catalog sync.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** TikTok for Shopify.
-
-### `tinymce-advanced`
-
-- **Description:** Classic editor enhancements.
-- **Relevance:** Low
-- **Transferability:** N/A
-
-### `trustpilot-integration`
-
-- **Description:** Trustpilot integration glue.
-- **Relevance:** Medium
-- **Transferability:** Full
-
-### `trustpilot-widget`
-
-- **Description:** Trustpilot widget embed.
-- **Relevance:** Medium
-- **Transferability:** **Easy move:** Trustpilot Shopify app/widget.
-
-### `try-before-you-buy`
-
-- **Description:** Try before you buy program.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** TBYB apps.
-
-### `two-factor-authentication-premium`
-
-- **Description:** 2FA for WP admin/logins.
-- **Relevance:** Medium
-- **Transferability:** **Not part of Shopify:** Shopify org security; customer 2FA via apps if needed.
-
-### `user-role-editor`
-
-- **Description:** WP role/capability editor.
-- **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** Shopify staff permissions.
-
-### `user-switching`
-
-- **Description:** Switch user for support testing.
-- **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** Shopify staff impersonation patterns differ.
-
-### `walmart-marketplace-integration`
-
-- **Description:** Walmart marketplace listing / orders.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Walmart Shopify channel.
-
-### `warehouse-export`
-
-- **Description:** Warehouse export + REST webhooks (ShipBob, Green warehouse classes).
-- **Relevance:** High
-- **Transferability:** **Expect some work:** OMS integration via Shopify webhooks + custom middleware.
-
-### `wc-admin-product-note`
-
-- **Description:** Product notes in admin for ops.
-- **Relevance:** Low
-- **Transferability:** **Expect some work:** Shopify order/product notes pattern.
-
-### `wc-remove-oldest-orders`
-
-- **Description:** Housekeeping: remove old orders from DB.
-- **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** WP-only maintenance.
-
-### `webp-express`
-
-- **Description:** WebP image conversion/delivery.
-- **Relevance:** Low
-- **Transferability:** **Expect some work:** Shopify image CDN handles formats.
-
-### `woo-discount-rules`
-
-- **Description:** Discount Rules for WooCommerce (conditional cart rules).
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify Functions + discount apps.
-
-### `woo-discount-rules-pro`
-
-- **Description:** Pro tier for Discount Rules (extra rule types).
-- **Relevance:** High
-- **Transferability:** **Expect some work:**
-
-### `woo-payment-gateway`
-
-- **Description:** Payment gateway package (often card UI / blocks).
-- **Relevance:** High
-- **Transferability:** **Expect some work:**
-
-### `woocommerce`
-
-- **Description:** WooCommerce core (cart, checkout, products, orders). Entire commerce layer to be replaced by Shopify.
-- **Relevance:** High
-- **Transferability:** **Needs a fresh build:** platform replacement.
-
-### `woocommerce-avatax`
-
-- **Description:** Avalara AvaTax for Woo.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Avalara Shopify.
-
-### `woocommerce-cart-page`
-
-- **Description:** Custom cart page behavior/routing.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify cart template + apps.
-
-### `woocommerce-checkout-userdata`
-
-- **Description:** Extra checkout user data capture.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** checkout UI extensions + metafields.
-
-### `woocommerce-complyt-tax`
-
-- **Description:** Complyt tax calculation.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify Tax / tax apps.
-
-### `woocommerce-coupons-utils`
-
-- **Description:** Utilities for coupon management/reporting.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:**
-
-### `woocommerce-gateway-paypal-express-checkout`
-
-- **Description:** PayPal Express checkout.
-- **Relevance:** High
-- **Transferability:** **Easy move:** PayPal on Shopify.
-
-### `woocommerce-google-address`
-
-- **Description:** Google Places autocomplete on address fields.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify address autocomplete / apps.
-
-### `woocommerce-legacy-rest-api`
-
-- **Description:** Legacy Woo REST API compatibility.
-- **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** any consumers must move to Shopify Admin API.
-
-### `woocommerce-magazine`
-
-- **Description:** Magazine / editorial integration with Woo (see plugin).
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Shopify blog Online Store.
-
-### `woocommerce-multilingual`
-
-- **Description:** Pairs languages with the right currency and exchange rates so visitors see familiar money symbols.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify Markets covers the same idea with different settings; any special rules must be re‑entered.
-
-### `woocommerce-my-account`
-
-- **Description:** Custom My Account SPA/loader and flows.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Customer Account API / legacy customer accounts strategy.
-
-### `woocommerce-quiz`
-
-- **Description:** Quiz tied to Woo products.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** third-party quiz app or custom theme.
-
-### `woocommerce-reminder-pro`
-
-- **Description:** Abandoned cart or reminder emails.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Klaviyo + Shopify checkout abandonment.
-
-### `woocommerce-replacement-orders`
-
-- **Description:** Replacement order workflow tied to Woo orders.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** draft orders / exchanges apps / custom.
-
-### `woocommerce-services`
-
-- **Description:** WooCommerce Shipping / tax (USPS etc. depending on config).
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Shopify Shipping.
-
-### `woocommerce-shipment-tracking`
-
-- **Description:** Woo shipment tracking meta on orders.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** native tracking + carrier apps.
-
-### `woocommerce-shipstation-integration`
-
-- **Description:** WooCommerce ShipStation plugin folder exists in the repo; **Particle does not use ShipStation** operationally—no migration to Shopify ShipStation. Deactivate/uninstall with WordPress.
-- **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** not in scope; remove dead plugin during decommission.
-
-### `woocommerce-siftscience-extensions`
-
-- **Description:** Extensions for Sift + Woo.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:**
-
-### `woocommerce-smart-coupons`
-
-- **Description:** Smart Coupons: store credit, gift certificates, bulk coupons, blocks.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify gift cards / discount combinations via apps.
-
-### `woocommerce-subscription`
-
-- **Description:** Companion tools that sit next to the main subscription engine—confirm with the web team whether both are active.
-- **Relevance:** High
-- **Transferability:** **Expect some work:**
-
-### `woocommerce-subscriptions`
-
-- **Description:** Powers subscribe‑and‑save: renewals, failed payment retries, and customer self‑service for delivery schedules.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify’s subscription tools are close, but every price and interval must be checked.
-
-### `woocommerce-zapier`
-
-- **Description:** Zapier triggers/actions for Woo.
-- **Relevance:** Medium
-- **Transferability:** **Easy move:** Shopify Zapier.
-
-### `woofunnels-order-bump`
-
-- **Description:** FunnelKit / WooFunnels order bumps.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** checkout upsell apps.
-
-### `wordpress-seo`
-
-- **Description:** Yoast SEO Free: meta, schema, sitemaps, redirects UI.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Shopify SEO fields + redirects JSON.
-
-### `wordpress-seo-premium`
-
-- **Description:** Yoast Premium: redirects, internal linking, AI features.
-- **Relevance:** High
-- **Transferability:** **Expect some work:**
-
-### `wp-rocket`
-
-- **Description:** Caching and performance (HTML/CSS/JS optimization).
-- **Relevance:** Medium
-- **Transferability:** **Not part of Shopify:** Shopify CDN/hosting; different model.
-
-### `wp-sitemap-page`
-
-- **Description:** HTML sitemap page shortcode/plugin.
-- **Relevance:** Low
-- **Transferability:** **Expect some work:** theme page.
-
-### `wp-smush-pro`
-
-- **Description:** Image compression.
-- **Relevance:** Low
-- **Transferability:** **Not part of Shopify:** Shopify image pipeline.
-
-### `wpml-media-translation`
-
-- **Description:** Lets each language version of the site use its own photos or PDFs when needed.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:**
-
-### `wpseo-woocommerce`
-
-- **Description:** Yoast WooCommerce SEO extension.
-- **Relevance:** High
-- **Transferability:** **Expect some work:**
-
-### `wunderkind-integration`
-
-- **Description:** Wunderkind (BounceX) behavioral marketing.
-- **Relevance:** Medium
-- **Transferability:** **Expect some work:** Wunderkind Shopify.
-
-### `yotpo-integration`
-
-- **Description:** Yotpo handles loyalty points, product reviews, SMS messages, and can create or cancel coupon codes from its system.
-- **Relevance:** High
-- **Transferability:** **Expect some work:** Yotpo’s own Shopify apps reconnect most of this.
+- **Transferability:** **Not part of Shopify** — map to Shopify org security and staff permissions.
 
 
 ---
 
 > [!TIP]
-> **Regenerate this file** after plugins or the theme change: from the WordPress project folder run `python docs/generate-shopify-inventory.py`.
+> **Regenerate this file** after the theme or integrations change: from the WordPress project folder run `python docs/generate-shopify-inventory.py`.
