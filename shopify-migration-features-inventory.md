@@ -1,24 +1,34 @@
 # Shopify migration — features inventory (Particle For Men)
 
-This document lists **what the current website and back office can do** so your team can talk to Shopify with fewer surprises. It was built from a technical review of the store code; this version is written so **non‑technical readers can follow the story**.
+> [!NOTE]
+> This document lists **what the current website and back office can do** so your team can talk to Shopify with fewer surprises. It was built from a technical review of the store code; this version is written so **non‑technical readers can follow the story**.
 
-**What each block means**
+### How to read each row
 
-- **Description** — In plain words: what customers, support, or the warehouse experience because of this item.
-- **Relevance** — **High** = touches money, legal, shipping, languages, or subscriptions; **Medium** = marketing, content, or important experience; **Low** = small convenience or something only the old website needed.
-- **Transferability** — How hard it is to get the same outcome on Shopify. **Easy move** means Shopify or a common partner already has a close match. **Expect some work** means apps or a short custom project. **Needs a fresh build** means we design it again on top of Shopify. **Not part of Shopify** means it belongs to the old hosting setup and simply goes away when WordPress is retired.
+| Column | What it means |
+| --- | --- |
+| **Description** | In plain words: what customers, support, or the warehouse experience because of this item. |
+| **Relevance** | **High** — money, legal, shipping, languages, or subscriptions. **Medium** — marketing, content, or important experience. **Low** — small convenience or mostly internal. |
+| **Transferability** | **Easy move** — close match in Shopify or a common partner. **Expect some work** — apps or a short custom project. **Needs a fresh build** — redesign on Shopify. **Not part of Shopify** — goes away when WordPress is retired. |
 
-Theme wiring and checkout templates are described **in one summary each** (we do not list every technical file). The long list in section 11 is almost every installed “package” name—even boring ones—with a short note there for the few folders this inventory deliberately skips (unused gift‑card package, licensing updater, and WPML strings explained in section 0).
+Theme wiring and checkout templates are summarized **once each** (not every PHP filename). Section 11 lists almost every installed plugin folder—even boring ones—with a short note for the few folders **deliberately skipped** (unused gift‑card package, licensing updater, and WPML “strings” explained in section 0 instead).
+
+---
 
 ## Legend (quick read)
 
-- **High** — Shoppers, revenue, tax, fraud checks, shipping, languages/currencies, subscriptions, or daily operations depend on it.
-- **Medium** — Marketing, reviews, emails, landing pages, SEO, or noticeable shopper experience.
-- **Low** — Editor helpers, old hosting tools, or things that rarely affect the customer journey.
+| Level | Typical scope |
+| --- | --- |
+| **High** | Shoppers, revenue, tax, fraud, shipping, languages/currencies, subscriptions, or day‑to‑day operations. |
+| **Medium** | Marketing, reviews, email, landing pages, SEO, or noticeable shopper experience. |
+| **Low** | Editor helpers, host‑specific tools, or things that rarely affect the customer journey. |
+
+---
 
 ## 0. Big moving parts (several add-ons work together)
 
-These threads describe **whole workflows** that span many items in section 11. They are reminders for workshops—not a replacement for the detailed rows below.
+> [!TIP]
+> These threads describe **whole workflows** that span many items in section 11. Use them in workshops; they do not replace the detailed rows below.
 
 ### Many countries, many languages, many currencies
 
@@ -46,9 +56,12 @@ These threads describe **whole workflows** that span many items in section 11. T
 
 ### Getting the box out the door (and telling the customer where it is)
 
-- **Description:** ShipBob, tracking emails, Narvar, AfterShip, warehouse exports, and the link to the Priority business system all feed this story. **Note:** a ShipStation add‑on exists in the code folder but **Particle does not use ShipStation**, so it should not be budgeted on Shopify.
+- **Description:** ShipBob, tracking emails, Narvar, AfterShip, warehouse exports, and the link to the Priority business system all feed this story.
 - **Relevance:** High
 - **Transferability:** **Expect some work** — Connectors and emails are rebuilt using Shopify’s order updates plus partner apps.
+
+> [!CAUTION]
+> A **ShipStation** add‑on exists in the code folder, but **Particle does not use ShipStation**—do not budget it for Shopify unless you explicitly adopt that product.
 
 ### Ads, pixels, and “who clicked what”
 
@@ -130,7 +143,8 @@ These threads describe **whole workflows** that span many items in section 11. T
 
 ## 7. Behind‑the‑scenes data feeds & webhooks
 
-_These are invisible to shoppers but important for marketing, warehouse, or finance._
+> [!TIP]
+> Shoppers never see these feeds, but **marketing, warehouse, and finance** often depend on them.
 
 ### Text messages (Twilio)
 
@@ -296,9 +310,12 @@ _These are invisible to shoppers but important for marketing, warehouse, or fina
 - **Relevance:** Medium
 - **Transferability:** **Not part of Shopify:** reference material only.
 
+---
+
 ## 10. Internal tools your team uses inside WordPress (`pfm-panel`)
 
-Support and operations use a private staff control panel wired into WordPress. It is not a shopper-facing storefront; it centralizes order, subscription, and customer work that today happens outside Shopify Admin. After migration, the same jobs belong in **Shopify Admin**, **Shopify Flow**, partner **apps**, or a small custom internal tool—with staff authentication and permissions designed on purpose.
+> [!NOTE]
+> Support and operations use a private **staff control panel** wired into WordPress. It is not a shopper-facing storefront; it centralizes order, subscription, and customer work that today happens outside Shopify Admin. After migration, the same jobs belong in **Shopify Admin**, **Shopify Flow**, partner **apps**, or a small custom internal tool—with staff authentication and permissions designed on purpose.
 
 ### Orders: search, open, edit, and back-office actions
 
@@ -336,11 +353,17 @@ Support and operations use a private staff control panel wired into WordPress. I
 - **Relevance:** Medium
 - **Transferability:** **Expect some work** — combine Shopify staff activity where it applies with app event logs or compliance tooling you standardize on.
 
-_Implementation note for engineers: these capabilities are implemented as WordPress REST routes registered for the `pfm-panel` integration; migration planning should inventory live callers in code and monitoring, not recreate every route name in stakeholder documents._
+> [!TIP]
+> **For engineers:** these capabilities are implemented as WordPress REST routes registered for the `pfm-panel` integration. Migration planning should inventory live callers in code and monitoring, not recreate every route name in stakeholder documents.
+
+---
 
 ## 11. Installed plugins (exhaustive)
+
 _**149** add-ons below (alphabetical). The bold name is the technical folder name—think of it as the “package label.” If a line sounds vague, that only means the name does not explain itself; your web partner maps it to the real vendor or feature._
-_Omitted from this list on purpose: an unused YITH gift‑card package, the WPMU DEV updater client (licensing only, not storefront behavior), and the separate WPML “strings” package—**translating text that lives inside buttons and add-ons** is described in section 0 instead so stakeholders read the capability once, not under two technical folder names._
+
+> [!IMPORTANT]
+> **Not listed here on purpose:** unused YITH gift‑card folder, WPMU DEV updater client (licensing only), and the separate WPML “strings” package. **Translating text inside buttons and add-ons** is covered in **section 0** so stakeholders read it once—not under two technical folder names.
 
 ### `PriorityAPI`
 
@@ -1239,4 +1262,5 @@ _Omitted from this list on purpose: an unused YITH gift‑card package, the WPMU
 
 ---
 
-_This file is generated. Engineers can refresh it after plugins or the theme change by running `python docs/generate-shopify-inventory.py` from the WordPress project folder._
+> [!TIP]
+> **Regenerate this file** after plugins or the theme change: from the WordPress project folder run `python docs/generate-shopify-inventory.py`.

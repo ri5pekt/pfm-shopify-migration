@@ -777,15 +777,16 @@ def emit_plugin_inventory() -> str:
     all_slugs = sorted(p.name for p in PLUGINS.iterdir() if p.is_dir())
     slugs = [s for s in all_slugs if s not in EXCLUDED_PLUGIN_SLUGS]
     lines: list[str] = []
-    lines.append("## 11. Installed plugins (exhaustive)\n")
+    lines.append("---\n\n")
+    lines.append("## 11. Installed plugins (exhaustive)\n\n")
     lines.append(
         f"_**{len(slugs)}** add-ons below (alphabetical). The bold name is the technical folder name—think of it as the “package label.” "
-        "If a line sounds vague, that only means the name does not explain itself; your web partner maps it to the real vendor or feature._\n"
+        "If a line sounds vague, that only means the name does not explain itself; your web partner maps it to the real vendor or feature._\n\n"
     )
     lines.append(
-        "_Omitted from this list on purpose: an unused YITH gift‑card package, the WPMU DEV updater client (licensing only, not storefront behavior), "
-        "and the separate WPML “strings” package—**translating text that lives inside buttons and add-ons** is described in section 0 instead "
-        "so stakeholders read the capability once, not under two technical folder names._\n\n"
+        "> [!IMPORTANT]\n"
+        "> **Not listed here on purpose:** unused YITH gift‑card folder, WPMU DEV updater client (licensing only), and the separate WPML “strings” package. "
+        "**Translating text inside buttons and add-ons** is covered in **section 0** so stakeholders read it once—not under two technical folder names.\n\n"
     )
     for slug in slugs:
         desc, relevance, xfer = CUSTOM.get(slug, default_row(slug))
@@ -842,33 +843,51 @@ def main() -> None:
     body: list[str] = []
     body.append("# Shopify migration — features inventory (Particle For Men)\n\n")
     body.append(
-        "This document lists **what the current website and back office can do** so your team can talk to Shopify with fewer surprises. "
+        "> [!NOTE]\n"
+        "> This document lists **what the current website and back office can do** so your team can talk to Shopify with fewer surprises. "
         "It was built from a technical review of the store code; this version is written so **non‑technical readers can follow the story**.\n\n"
-        "**What each block means**\n\n"
-        "- **Description** — In plain words: what customers, support, or the warehouse experience because of this item.\n"
-        "- **Relevance** — **High** = touches money, legal, shipping, languages, or subscriptions; **Medium** = marketing, content, or important experience; "
-        "**Low** = small convenience or something only the old website needed.\n"
-        "- **Transferability** — How hard it is to get the same outcome on Shopify. "
-        "**Easy move** means Shopify or a common partner already has a close match. "
-        "**Expect some work** means apps or a short custom project. "
-        "**Needs a fresh build** means we design it again on top of Shopify. "
-        "**Not part of Shopify** means it belongs to the old hosting setup and simply goes away when WordPress is retired.\n\n"
-        "Theme wiring and checkout templates are described **in one summary each** (we do not list every technical file). "
-        "The long list in section 11 is almost every installed “package” name—even boring ones—with a short note there for the few folders "
-        "this inventory deliberately skips (unused gift‑card package, licensing updater, and WPML strings explained in section 0).\n\n"
     )
+    body.append("### How to read each row\n\n")
+    body.append("| Column | What it means |\n")
+    body.append("| --- | --- |\n")
+    body.append(
+        "| **Description** | In plain words: what customers, support, or the warehouse experience because of this item. |\n"
+    )
+    body.append(
+        "| **Relevance** | **High** — money, legal, shipping, languages, or subscriptions. "
+        "**Medium** — marketing, content, or important experience. **Low** — small convenience or mostly internal. |\n"
+    )
+    body.append(
+        "| **Transferability** | **Easy move** — close match in Shopify or a common partner. "
+        "**Expect some work** — apps or a short custom project. **Needs a fresh build** — redesign on Shopify. "
+        "**Not part of Shopify** — goes away when WordPress is retired. |\n\n"
+    )
+    body.append(
+        "Theme wiring and checkout templates are summarized **once each** (not every PHP filename). "
+        "Section 11 lists almost every installed plugin folder—even boring ones—with a short note for the few folders **deliberately skipped** "
+        "(unused gift‑card package, licensing updater, and WPML “strings” explained in section 0 instead).\n\n"
+    )
+    body.append("---\n\n")
 
     body.append("## Legend (quick read)\n\n")
+    body.append("| Level | Typical scope |\n")
+    body.append("| --- | --- |\n")
     body.append(
-        "- **High** — Shoppers, revenue, tax, fraud checks, shipping, languages/currencies, subscriptions, or daily operations depend on it.\n"
-        "- **Medium** — Marketing, reviews, emails, landing pages, SEO, or noticeable shopper experience.\n"
-        "- **Low** — Editor helpers, old hosting tools, or things that rarely affect the customer journey.\n\n"
+        "| **High** | Shoppers, revenue, tax, fraud, shipping, languages/currencies, subscriptions, or day‑to‑day operations. |\n"
     )
+    body.append(
+        "| **Medium** | Marketing, reviews, email, landing pages, SEO, or noticeable shopper experience. |\n"
+    )
+    body.append(
+        "| **Low** | Editor helpers, host‑specific tools, or things that rarely affect the customer journey. |\n\n"
+    )
+    body.append("---\n\n")
 
     body.append("## 0. Big moving parts (several add-ons work together)\n\n")
     body.append(
-        "These threads describe **whole workflows** that span many items in section 11. "
-        "They are reminders for workshops—not a replacement for the detailed rows below.\n\n"
+        "> [!TIP]\n"
+        "> These threads describe **whole workflows** that span many items in section 11. "
+        "Use them in workshops; they do not replace the detailed rows below.\n\n"
     )
     threads = [
         (
@@ -904,23 +923,33 @@ def main() -> None:
         ),
         (
             "Getting the box out the door (and telling the customer where it is)",
-            "ShipBob, tracking emails, Narvar, AfterShip, warehouse exports, and the link to the Priority business system all feed this story. "
-            "**Note:** a ShipStation add‑on exists in the code folder but **Particle does not use ShipStation**, so it should not be budgeted on Shopify.",
+            "ShipBob, tracking emails, Narvar, AfterShip, warehouse exports, and the link to the Priority business system all feed this story.",
             "High",
             "**Expect some work** — Connectors and emails are rebuilt using Shopify’s order updates plus partner apps.",
+            True,
         ),
         (
             "Ads, pixels, and “who clicked what”",
             "Google Tag Manager, Meta/TikTok pixels, affiliate tools, pop‑ups, and similar tags feed marketing teams.",
             "High",
             "**Expect some work** — Most partners publish a Shopify‑ready snippet; still needs QA so sales numbers stay trustworthy.",
+            False,
         ),
     ]
-    for title, desc, rel, xfer in threads:
+    for thread in threads:
+        title, desc, rel, xfer = thread[0], thread[1], thread[2], thread[3]
+        shipstation_caution = thread[4] if len(thread) > 4 else False
         body.append(f"### {title}\n\n")
         body.append(f"- **Description:** {desc}\n")
         body.append(f"- **Relevance:** {rel}\n")
-        body.append(f"- **Transferability:** {xfer}\n\n")
+        body.append(f"- **Transferability:** {xfer}\n")
+        if shipstation_caution:
+            body.append(
+                "\n> [!CAUTION]\n"
+                "> A **ShipStation** add‑on exists in the code folder, but **Particle does not use ShipStation**—"
+                "do not budget it for Shopify unless you explicitly adopt that product.\n"
+            )
+        body.append("\n")
 
     n_libs = len(theme_libs)
     body.append("## 1. The storefront “glue” (theme code)\n\n")
@@ -1018,7 +1047,8 @@ def main() -> None:
 
     body.append("## 7. Behind‑the‑scenes data feeds & webhooks\n\n")
     body.append(
-        "_These are invisible to shoppers but important for marketing, warehouse, or finance._\n\n"
+        "> [!TIP]\n"
+        "> Shoppers never see these feeds, but **marketing, warehouse, and finance** often depend on them.\n\n"
     )
     rest_items = [
         ("Text messages (Twilio)", "Lets the site send or verify SMS messages (for example two‑step flows)."),
@@ -1117,6 +1147,8 @@ def main() -> None:
     body.append("- **Relevance:** Medium\n")
     body.append("- **Transferability:** **Not part of Shopify:** reference material only.\n\n")
 
+    body.append("---\n\n")
+
     pfm_section = ROOT / "docs" / "_pfm-panel-section.md"
     if pfm_section.is_file():
         body.append(pfm_section.read_text(encoding="utf-8").rstrip() + "\n\n")
@@ -1129,8 +1161,9 @@ def main() -> None:
     body.append(emit_plugin_inventory())
 
     body.append(
-        "\n---\n\n_This file is generated. Engineers can refresh it after plugins or the theme change by running "
-        "`python docs/generate-shopify-inventory.py` from the WordPress project folder._\n"
+        "\n---\n\n> [!TIP]\n"
+        "> **Regenerate this file** after plugins or the theme change: from the WordPress project folder run "
+        "`python docs/generate-shopify-inventory.py`.\n"
     )
 
     out.write_text("".join(body), encoding="utf-8")

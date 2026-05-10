@@ -1,6 +1,7 @@
 ## 10. Internal tools your team uses inside WordPress (`pfm-panel`)
 
-Support and operations use a private staff control panel wired into WordPress. It is not a shopper-facing storefront; it centralizes order, subscription, and customer work that today happens outside Shopify Admin. After migration, the same jobs belong in **Shopify Admin**, **Shopify Flow**, partner **apps**, or a small custom internal tool—with staff authentication and permissions designed on purpose.
+> [!NOTE]
+> Support and operations use a private **staff control panel** wired into WordPress. It is not a shopper-facing storefront; it centralizes order, subscription, and customer work that today happens outside Shopify Admin. After migration, the same jobs belong in **Shopify Admin**, **Shopify Flow**, partner **apps**, or a small custom internal tool—with staff authentication and permissions designed on purpose.
 
 ### Orders: search, open, edit, and back-office actions
 
@@ -38,4 +39,5 @@ Support and operations use a private staff control panel wired into WordPress. I
 - **Relevance:** Medium
 - **Transferability:** **Expect some work** — combine Shopify staff activity where it applies with app event logs or compliance tooling you standardize on.
 
-_Implementation note for engineers: these capabilities are implemented as WordPress REST routes registered for the `pfm-panel` integration; migration planning should inventory live callers in code and monitoring, not recreate every route name in stakeholder documents._
+> [!TIP]
+> **For engineers:** these capabilities are implemented as WordPress REST routes registered for the `pfm-panel` integration. Migration planning should inventory live callers in code and monitoring, not recreate every route name in stakeholder documents.
